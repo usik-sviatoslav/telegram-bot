@@ -10,9 +10,9 @@ from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, Me
 # ----------------------------------------------------------------------------------------------------------------------
 
 def delete_user_messages(func):
-    async def wrapper(update, context):
+    async def wrapper(update, context, *args):
         await update.message.delete()
-        await func(update, context)
+        await func(update, context, *args)
         logging.info('Message from user deleted.')
 
     return wrapper
@@ -65,54 +65,67 @@ class Menu:
 
     async def __call__(self, update: Update, context: CallbackContext) -> None:
         logging.info(f'Button "{update.message.text}" was triggered')
-
+        await update.message.delete()
+        logging.info("Message from user deleted.")
         message = await update.message.reply_text(self.text, reply_markup=self.reply_markup)
 
-        chat_states = context.bot_data.get("chat_states", [])
-        chat_states.append(update.message.text)
-        context.bot_data["chat_states"] = chat_states
+        bot_commands = [
+            "Оберіть опцію", "Введіть назву нової категорії",
+            "Введіть назву категорії яку треба видалити"
+        ]
 
+        # Отримуємо id повідомлення від бота, щоб потім видалити повідомлення
         bot_messages = context.bot_data.get("bot_messages", [])
-        bot_messages.append(message.message_id)
-        context.bot_data["bot_messages"] = bot_messages
+        if message.text in bot_commands:
+            bot_messages.append(message.message_id)
+            context.bot_data["bot_messages"] = bot_messages
+
+        if len(bot_messages) >= 2:
+            for message_id in bot_messages[:-1]:
+                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+                logging.info("Message from bot deleted.")
+            context.bot_data["bot_messages"] = [bot_messages[-1]]
+
+
+        if not update.message.text == "Назад":
+            chat_states = context.bot_data.get("chat_states", [])
+            chat_states.append(update.message.text)
+            context.bot_data["chat_states"] = chat_states
 
     @staticmethod
     async def back_to_previous(update: Update, context: CallbackContext) -> None:
         chat_states = context.bot_data.get("chat_states", [])
 
         if chat_states[-1] == "Меню":
-            await main_menu(update, context)
-            context.bot_data["chat_states"] = [chat_states[-1]]
             chat_states.pop()
+            await main_menu(update, context)
         elif chat_states[-1] == "Переглянути доходи":
-            context.bot_data["chat_states"] = [chat_states[-1]]
             chat_states.pop()
             await menu(update, context)
         elif chat_states[-1] == "Переглянути витрати":
-            context.bot_data["chat_states"] = [chat_states[-1]]
             chat_states.pop()
             await menu(update, context)
         elif chat_states[-1] == "Статистика":
-            context.bot_data["chat_states"] = [chat_states[-1]]
             chat_states.pop()
             await menu(update, context)
         elif chat_states[-1] == "Переглянути категорії":
-            context.bot_data["chat_states"] = [chat_states[-1]]
             chat_states.pop()
             await menu(update, context)
         elif chat_states[-1] == "Додати категорію":
-            context.bot_data["chat_states"] = [chat_states[-1]]
             chat_states.pop()
             await menu_show_category(update, context)
         elif chat_states[-1] == "Видалити категорію":
-            context.bot_data["chat_states"] = [chat_states[-1]]
             chat_states.pop()
             await menu_show_category(update, context)
 
 
+t = "Lorem ipsum dolor sit amet"
+large_list = [t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, ]
+joined_text = "\n".join([f"{i+1}. {line}" for i, line in enumerate(large_list)])
+
 main_menu = Menu("Оберіть опцію", markups.main_menu)
 menu = Menu("Оберіть опцію", markups.menu)
-menu_show_income = Menu("На екран виводиться список категорій.", markups.menu_show_income)
+menu_show_income = Menu(joined_text, markups.menu_show_income)
 menu_show_spending = Menu("На екран виводиться список категорій.", markups.menu_show_spending)
 menu_show_statistic = Menu("Тут буде показано статистику.", markups.menu_show_statistic)
 menu_show_category = Menu("На екран виводиться список категорій.", markups.menu_show_category)
