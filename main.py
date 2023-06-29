@@ -6,38 +6,12 @@ from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, Me
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# Decorator
-# ----------------------------------------------------------------------------------------------------------------------
-
-def delete_user_messages(func):
-    async def wrapper(update, context, *args):
-        await update.message.delete()
-        await func(update, context, *args)
-        logging.info('Message from user deleted.')
-
-    return wrapper
-
-
-def delete_bot_messages(func):
-    async def wrapper(update, context):
-        messages = context.bot_data.get("bot_messages", [])
-        await func(update, context)
-        if len(messages) >= 2:
-            for message_id in messages[:-1]:
-                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-            context.bot_data["bot_messages"] = [messages[-1]]
-        logging.info('Message from bot deleted.')
-
-    return wrapper
-
-
-# ----------------------------------------------------------------------------------------------------------------------
 # Function
 # ----------------------------------------------------------------------------------------------------------------------
 
-@delete_user_messages
 async def start(update: Update, context: CallbackContext) -> None:
     logging.info('Command "/start" was triggered.')
+    await update.message.delete()
     message_1 = await update.message.reply_text("Привіт! Давай розкажу що я взагалі вмію.\n")
     message_2 = await update.message.reply_text(
         "Операції:\n"
@@ -83,9 +57,9 @@ class Menu:
         if len(bot_messages) >= 2:
             for message_id in bot_messages[:-1]:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+                bot_messages.pop(0)
                 logging.info("Message from bot deleted.")
             context.bot_data["bot_messages"] = [bot_messages[-1]]
-
 
         if not update.message.text == "Назад":
             chat_states = context.bot_data.get("chat_states", [])
@@ -120,7 +94,7 @@ class Menu:
 
 
 t = "Lorem ipsum dolor sit amet"
-large_list = [t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, ]
+large_list = [t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t]
 joined_text = "\n".join([f"{i+1}. {line}" for i, line in enumerate(large_list)])
 
 main_menu = Menu("Оберіть опцію", markups.main_menu)
@@ -138,7 +112,7 @@ menu_remove_category = Menu("Введіть назву категорії яку
 # ----------------------------------------------------------------------------------------------------------------------
 
 # noinspection SpellCheckingInspection
-TOKEN_BOT = "5813491047:AAHnwTeChugvOLpQsa_jPMotXM69QATCYVk"
+TOKEN_BOT = "6117967316:AAH3d5p-J-_D1mLHDCO6KEYr1pjYL7RcL8A"
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.basicConfig(
