@@ -1,6 +1,6 @@
 import logging
 import markups
-
+import bot_data as data
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, MessageHandler, filters
 
@@ -24,7 +24,7 @@ async def start(update: Update, context: CallbackContext) -> None:
         "• Переглядати усі витрати за період\n"
         "• Переглядати усі доходи за період\n"
         "• Переглядати загальну статистику\n",
-        reply_markup=markups.main_menu
+        reply_markup=markups.home
     )
     bot_messages = context.bot_data.get("bot_messages", [])
     bot_messages.append(message_1.message_id)
@@ -72,7 +72,7 @@ class Menu:
 
         if chat_states[-1] == "Меню":
             chat_states.pop()
-            await main_menu(update, context)
+            await home(update, context)
         elif chat_states[-1] == "Переглянути доходи":
             chat_states.pop()
             await menu(update, context)
@@ -93,13 +93,9 @@ class Menu:
             await menu_show_category(update, context)
 
 
-t = "Lorem ipsum dolor sit amet"
-large_list = [t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t]
-joined_text = "\n".join([f"{i+1}. {line}" for i, line in enumerate(large_list)])
-
-main_menu = Menu("Оберіть опцію", markups.main_menu)
+home = Menu("Оберіть опцію", markups.home)
 menu = Menu("Оберіть опцію", markups.menu)
-menu_show_income = Menu(joined_text, markups.menu_show_income)
+menu_show_income = Menu(data.joined_text, markups.menu_show_income)
 menu_show_spending = Menu("На екран виводиться список категорій.", markups.menu_show_spending)
 menu_show_statistic = Menu("Тут буде показано статистику.", markups.menu_show_statistic)
 menu_show_category = Menu("На екран виводиться список категорій.", markups.menu_show_category)
@@ -125,6 +121,7 @@ def run():
     app = ApplicationBuilder().token(TOKEN_BOT).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("home", home))
     app.add_handler(MessageHandler(filters.Regex(r"^Меню$"), menu))
     app.add_handler(MessageHandler(filters.Regex(r"^Переглянути доходи$"), menu_show_income))
     app.add_handler(MessageHandler(filters.Regex(r"^Переглянути витрати$"), menu_show_spending))

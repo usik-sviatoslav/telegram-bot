@@ -32,35 +32,35 @@ btn_show_category = KeyboardButton("Переглянути категорії")
 # ReplyKeyboardMarkup
 # ----------------------------------------------------------------------------------------------------------------------
 
-main_menu = ReplyKeyboardMarkup(
+home = ReplyKeyboardMarkup(
     [[btn_new], [btn_menu]],
-    resize_keyboard=True
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_spending_income = ReplyKeyboardMarkup(
     [[btn_spending, btn_income], [btn_back]],
-    resize_keyboard=True
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu = ReplyKeyboardMarkup(
     [[btn_show_spending, btn_show_income], [btn_statistic], [btn_show_category], [btn_back]],
-    resize_keyboard=True
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_spending = ReplyKeyboardMarkup(
     [[btn_previous_month, btn_forward], [btn_remove, btn_back, btn_add]],
-    resize_keyboard=True
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_income = ReplyKeyboardMarkup(
     [[btn_previous_month, btn_forward], [btn_remove, btn_back, btn_add]],
-    resize_keyboard=True
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_statistic = ReplyKeyboardMarkup(
     [[btn_week, btn_month, btn_year], [btn_back]],
-    resize_keyboard=True
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_category = ReplyKeyboardMarkup(
     [[btn_add_category], [btn_remove_category], [btn_back]],
-    resize_keyboard=True
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_btn_back = ReplyKeyboardMarkup(
     [[btn_back]],
-    resize_keyboard=True
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Назва категорії: "
 )
