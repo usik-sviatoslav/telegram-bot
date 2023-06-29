@@ -12,8 +12,8 @@ from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, Me
 def delete_user_messages(func):
     async def wrapper(update, context):
         await update.message.delete()
+        await func(update, context)
         logging.info('Message from user deleted.')
-        return await func(update, context)
 
     return wrapper
 
@@ -23,22 +23,10 @@ def delete_bot_messages(func):
         messages = context.bot_data.get("bot_messages", [])
         await func(update, context)
         if len(messages) >= 2:
-            # Видаляємо всі повідомлення, крім останнього
             for message_id in messages[:-1]:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-            context.bot_data["bot_messages"] = [messages[-1]]  # Залишаємо тільки останнє повідомлення
-
+            context.bot_data["bot_messages"] = [messages[-1]]
         logging.info('Message from bot deleted.')
-
-    return wrapper
-
-
-def save_current_state(func):
-    async def wrapper(update, context):
-        chat_id = update.effective_chat.id
-        set_current_state(chat_id, func.__name__, context)
-        context.user_data["current_state"] = func.__name__
-        await func(update, context)
 
     return wrapper
 
@@ -70,157 +58,66 @@ async def start(update: Update, context: CallbackContext) -> None:
     context.bot_data["bot_messages"] = bot_messages
 
 
-@delete_user_messages
-@delete_bot_messages
-@save_current_state
-async def main_menu(update: Update, context: CallbackContext) -> None:
-    logging.info('"main_menu" was opened.')
+class Menu:
+    def __init__(self, text, reply_markup):
+        self.text = text
+        self.reply_markup = reply_markup
 
-    message = await update.message.reply_text("Оберіть опцію", reply_markup=markups.main_menu)
-    bot_messages = context.bot_data.get("bot_messages", [])
-    bot_messages.append(message.message_id)
-    context.bot_data["bot_messages"] = bot_messages
+    async def __call__(self, update: Update, context: CallbackContext) -> None:
+        logging.info(f'Button "{update.message.text}" was triggered')
 
+        message = await update.message.reply_text(self.text, reply_markup=self.reply_markup)
 
-@delete_user_messages
-@delete_bot_messages
-@save_current_state
-async def menu(update: Update, context: CallbackContext) -> None:
-    logging.info('"menu" was opened.')
+        chat_states = context.bot_data.get("chat_states", [])
+        chat_states.append(update.message.text)
+        context.bot_data["chat_states"] = chat_states
 
-    message = await update.message.reply_text(
-        "Оберіть опцію",
-        reply_markup=markups.menu
-    )
-    bot_messages = context.bot_data.get("bot_messages", [])
-    bot_messages.append(message.message_id)
-    context.bot_data["bot_messages"] = bot_messages
+        bot_messages = context.bot_data.get("bot_messages", [])
+        bot_messages.append(message.message_id)
+        context.bot_data["bot_messages"] = bot_messages
 
+    @staticmethod
+    async def back_to_previous(update: Update, context: CallbackContext) -> None:
+        chat_states = context.bot_data.get("chat_states", [])
 
-@delete_user_messages
-@delete_bot_messages
-@save_current_state
-async def menu_show_income(update: Update, context: CallbackContext) -> None:
-    logging.info('"menu_show_income" was opened.')
-
-    message = await update.message.reply_text(
-        "На екран виводиться список категорій.",
-        reply_markup=markups.menu_show_income
-    )
-    bot_messages = context.bot_data.get("bot_messages", [])
-    bot_messages.append(message.message_id)
-    context.bot_data["bot_messages"] = bot_messages
-
-
-@delete_user_messages
-@delete_bot_messages
-@save_current_state
-async def menu_show_spending(update: Update, context: CallbackContext) -> None:
-    logging.info('"menu_show_spending" was opened.')
-
-    message = await update.message.reply_text(
-        "На екран виводиться список категорій.\n"
-        "Кожна категорія натискається, відкривається підкатегорія якщо є.\n"
-        "Виводиться список і сума усіх витрат за останній місяць для категорії",
-        reply_markup=markups.menu_show_spending
-    )
-    bot_messages = context.bot_data.get("bot_messages", [])
-    bot_messages.append(message.message_id)
-    context.bot_data["bot_messages"] = bot_messages
+        if chat_states[-1] == "Меню":
+            await main_menu(update, context)
+            context.bot_data["chat_states"] = [chat_states[-1]]
+            chat_states.pop()
+        elif chat_states[-1] == "Переглянути доходи":
+            context.bot_data["chat_states"] = [chat_states[-1]]
+            chat_states.pop()
+            await menu(update, context)
+        elif chat_states[-1] == "Переглянути витрати":
+            context.bot_data["chat_states"] = [chat_states[-1]]
+            chat_states.pop()
+            await menu(update, context)
+        elif chat_states[-1] == "Статистика":
+            context.bot_data["chat_states"] = [chat_states[-1]]
+            chat_states.pop()
+            await menu(update, context)
+        elif chat_states[-1] == "Переглянути категорії":
+            context.bot_data["chat_states"] = [chat_states[-1]]
+            chat_states.pop()
+            await menu(update, context)
+        elif chat_states[-1] == "Додати категорію":
+            context.bot_data["chat_states"] = [chat_states[-1]]
+            chat_states.pop()
+            await menu_show_category(update, context)
+        elif chat_states[-1] == "Видалити категорію":
+            context.bot_data["chat_states"] = [chat_states[-1]]
+            chat_states.pop()
+            await menu_show_category(update, context)
 
 
-@delete_user_messages
-@delete_bot_messages
-@save_current_state
-async def menu_show_statistic(update: Update, context: CallbackContext) -> None:
-    logging.info('"menu_show_spending" was opened.')
-
-    message = await update.message.reply_text(
-        "Тут буде показано статистику",
-        reply_markup=markups.menu_show_statistic
-    )
-    bot_messages = context.bot_data.get("bot_messages", [])
-    bot_messages.append(message.message_id)
-    context.bot_data["bot_messages"] = bot_messages
-
-
-@delete_user_messages
-@delete_bot_messages
-@save_current_state
-async def menu_show_category(update: Update, context: CallbackContext) -> None:
-    logging.info('"menu_show_category" was opened.')
-
-    message = await update.message.reply_text(
-        "Тут буде показано список категорій",
-        reply_markup=markups.menu_show_category
-    )
-    bot_messages = context.bot_data.get("bot_messages", [])
-    bot_messages.append(message.message_id)
-    context.bot_data["bot_messages"] = bot_messages
-
-
-@delete_user_messages
-@delete_bot_messages
-@save_current_state
-async def menu_add_category(update: Update, context: CallbackContext) -> None:
-    logging.info('"menu_add_category" was opened.')
-
-    message = await update.message.reply_text(
-        "Введіть назву нової категорії",
-        reply_markup=markups.menu_btn_back
-    )
-
-    bot_messages = context.bot_data.get("bot_messages", [])
-    bot_messages.append(message.message_id)
-    context.bot_data["bot_messages"] = bot_messages
-
-
-@delete_user_messages
-@delete_bot_messages
-@save_current_state
-async def menu_remove_category(update: Update, context: CallbackContext) -> None:
-    logging.info('"menu_remove_category" was opened.')
-
-    message = await update.message.reply_text(
-        "Введіть назву категорії яку треба видалити",
-        reply_markup=markups.menu_btn_back
-    )
-    bot_messages = context.bot_data.get("bot_messages", [])
-    bot_messages.append(message.message_id)
-    context.bot_data["bot_messages"] = bot_messages
-
-
-def get_current_state(chat_id, context):
-    chat_states = context.bot_data.get("chat_states", {})
-    current_state = chat_states.get(chat_id)
-    return current_state
-
-
-def set_current_state(chat_id, state, context):
-    chat_states = context.bot_data.get("chat_states", {})
-    chat_states[chat_id] = state
-    context.bot_data["chat_states"] = chat_states
-
-
-async def back(update: Update, context: CallbackContext):
-    logging.info('"back" was triggered.')
-    chat_id = update.effective_chat.id
-    current_state = get_current_state(chat_id, context)
-
-    if current_state == "menu":
-        await main_menu(update, context)
-    elif current_state == "menu_show_income":
-        await menu(update, context)
-    elif current_state == "menu_show_spending":
-        await menu(update, context)
-    elif current_state == "menu_show_statistic":
-        await menu(update, context)
-    elif current_state == "menu_show_category":
-        await menu(update, context)
-    elif current_state == "menu_add_category":
-        await menu_show_category(update, context)
-    elif current_state == "menu_remove_category":
-        await menu_show_category(update, context)
+main_menu = Menu("Оберіть опцію", markups.main_menu)
+menu = Menu("Оберіть опцію", markups.menu)
+menu_show_income = Menu("На екран виводиться список категорій.", markups.menu_show_income)
+menu_show_spending = Menu("На екран виводиться список категорій.", markups.menu_show_spending)
+menu_show_statistic = Menu("Тут буде показано статистику.", markups.menu_show_statistic)
+menu_show_category = Menu("На екран виводиться список категорій.", markups.menu_show_category)
+menu_add_category = Menu("Введіть назву нової категорії", markups.menu_btn_back)
+menu_remove_category = Menu("Введіть назву категорії яку треба видалити", markups.menu_btn_back)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -249,7 +146,7 @@ def run():
     app.add_handler(MessageHandler(filters.Regex(r"^Додати категорію$"), menu_add_category))
     app.add_handler(MessageHandler(filters.Regex(r"^Видалити категорію$"), menu_remove_category))
 
-    app.add_handler(MessageHandler(filters.Regex(r"^Назад$"), back))
+    app.add_handler(MessageHandler(filters.Regex(r"^Назад$"), Menu.back_to_previous))
 
     app.run_polling()
 
