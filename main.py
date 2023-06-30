@@ -53,13 +53,23 @@ class Menu:
         if message.text in bot_commands:
             bot_messages.append(message.message_id)
             context.bot_data["bot_messages"] = bot_messages
+        else:
+            bot_messages.append(0)
 
-        if len(bot_messages) >= 2:
-            for message_id in bot_messages[:-1]:
-                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-                bot_messages.pop(0)
-                logging.info("Message from bot deleted.")
-            context.bot_data["bot_messages"] = [bot_messages[-1]]
+        try:
+            if len(bot_messages) >= 2:
+                for message_id in bot_messages[:-1]:
+                    if message_id:
+                        if message_id == 0:
+                            bot_messages.pop(0)
+                        else:
+                            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+                            bot_messages.pop(0)
+                            logging.info("Message from bot deleted.")
+                            context.bot_data["bot_messages"] = [bot_messages[-1]]
+
+        except Exception as exception:
+            raise exception
 
         if not update.message.text == "Назад":
             chat_states = context.bot_data.get("chat_states", [])
