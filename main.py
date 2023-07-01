@@ -71,14 +71,13 @@ class Menu:
 
         if len(bot_message_command) >= 2:
             for message_id in bot_message_command[:-1]:
-                if message_id:
-                    if message_id == 0:
-                        bot_message_command.pop(0)
-                    else:
-                        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-                        bot_message_command.pop(0)
-                        logging.info("❌ Message from bot  deleted ❌")
-                        context.bot_data["bot_message_command"] = [bot_message_command[-1]]
+                if message_id == 0:
+                    bot_message_command.pop(0)
+                else:
+                    await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+                    bot_message_command.pop(0)
+                    logging.info("❌ Message from bot  deleted ❌")
+                    context.bot_data["bot_message_command"] = [bot_message_command[-1]]
 
         if not update.message.text == "Назад":
             chat_states = context.bot_data.get("chat_states", [])
@@ -108,25 +107,18 @@ class Menu:
         chat_states = context.bot_data.get("chat_states", [])
 
         try:
-            if chat_states[-1] == "Меню":
+            state = chat_states[-1]
+            if state == "Меню":
                 chat_states.pop()
                 await home.clear(update, context)
-            elif chat_states[-1] == "Переглянути доходи":
+            elif state == "Переглянути доходи" \
+                    or state == "Переглянути витрати"\
+                    or state == "Статистика"\
+                    or state == "Переглянути категорії":
                 chat_states.pop()
                 await menu(update, context)
-            elif chat_states[-1] == "Переглянути витрати":
-                chat_states.pop()
-                await menu(update, context)
-            elif chat_states[-1] == "Статистика":
-                chat_states.pop()
-                await menu(update, context)
-            elif chat_states[-1] == "Переглянути категорії":
-                chat_states.pop()
-                await menu(update, context)
-            elif chat_states[-1] == "Додати категорію":
-                chat_states.pop()
-                await menu_show_category(update, context)
-            elif chat_states[-1] == "Видалити категорію":
+            elif state == "Додати категорію" \
+                    or state == "Видалити категорію":
                 chat_states.pop()
                 await menu_show_category(update, context)
         except IndexError:
