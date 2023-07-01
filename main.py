@@ -11,7 +11,12 @@ from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, Me
 
 async def start(update: Update, context: CallbackContext) -> None:
     logging.info('Command "/start" was triggered.')
-    await update.message.delete()
+    try:
+        await update.message.delete()
+        logging.info("❌ Message from user deleted ❌")
+    except Exception as exception:
+        logging.warning(f"⚠️ {exception} ⚠️")
+
     message_1 = await update.message.reply_text("Привіт! Давай розкажу що я взагалі вмію.\n")
     message_2 = await update.message.reply_text(
         "Операції:\n"
@@ -26,10 +31,10 @@ async def start(update: Update, context: CallbackContext) -> None:
         "• Переглядати загальну статистику\n",
         reply_markup=markups.home
     )
-    bot_messages = context.bot_data.get("bot_messages", [])
-    bot_messages.append(message_1.message_id)
-    bot_messages.append(message_2.message_id)
-    context.bot_data["bot_messages"] = bot_messages
+    bot_message_command = context.bot_data.get("bot_message_command", [])
+    bot_message_command.append(message_1.message_id)
+    bot_message_command.append(message_2.message_id)
+    context.bot_data["bot_message_command"] = bot_message_command
 
 
 class Menu:
@@ -48,34 +53,55 @@ class Menu:
 
         message = await update.message.reply_text(self.text, reply_markup=self.reply_markup)
 
-        bot_commands = [
+        commands = [
             "Оберіть опцію", "Введіть назву нової категорії",
             "Введіть назву категорії яку треба видалити"
         ]
 
         # Отримуємо id повідомлення від бота, щоб потім видалити повідомлення
-        bot_messages = context.bot_data.get("bot_messages", [])
-        if message.text in bot_commands:
-            bot_messages.append(message.message_id)
-            context.bot_data["bot_messages"] = bot_messages
+        bot_message_command = context.bot_data.get("bot_message_command", [])
+        bot_message = context.bot_data.get("bot_message", [])
+        if message.text in commands:
+            bot_message_command.append(message.message_id)
+            context.bot_data["bot_message_command"] = bot_message_command
         else:
-            bot_messages.append(0)
+            bot_message.append(message.message_id)
+            context.bot_data["bot_message"] = bot_message
+            bot_message_command.append(0)
 
-        if len(bot_messages) >= 2:
-            for message_id in bot_messages[:-1]:
+        if len(bot_message_command) >= 2:
+            for message_id in bot_message_command[:-1]:
                 if message_id:
                     if message_id == 0:
-                        bot_messages.pop(0)
+                        bot_message_command.pop(0)
                     else:
                         await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-                        bot_messages.pop(0)
+                        bot_message_command.pop(0)
                         logging.info("❌ Message from bot  deleted ❌")
-                        context.bot_data["bot_messages"] = [bot_messages[-1]]
+                        context.bot_data["bot_message_command"] = [bot_message_command[-1]]
 
         if not update.message.text == "Назад":
             chat_states = context.bot_data.get("chat_states", [])
             chat_states.append(update.message.text)
             context.bot_data["chat_states"] = chat_states
+
+    @staticmethod
+    async def clear(update: Update, context: CallbackContext) -> None:
+        await home(update, context)
+
+        bot_message = context.bot_data.get("bot_message", [])
+        bot_message_command = context.bot_data.get("bot_message_command", [])
+
+        for message_id in reversed(bot_message):
+            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+            bot_message.pop()
+
+        for message_id in bot_message_command:
+            if len(bot_message_command) >= 2:
+                if message_id == 0:
+                    bot_message_command.pop(0)
+
+        logging.info("Clear ✔️")
 
     @staticmethod
     async def back_to_previous(update: Update, context: CallbackContext) -> None:
@@ -84,7 +110,7 @@ class Menu:
         try:
             if chat_states[-1] == "Меню":
                 chat_states.pop()
-                await home(update, context)
+                await home.clear(update, context)
             elif chat_states[-1] == "Переглянути доходи":
                 chat_states.pop()
                 await menu(update, context)
@@ -105,9 +131,6 @@ class Menu:
                 await menu_show_category(update, context)
         except IndexError:
             logging.warning(f"⚠️ List index out of range ⚠️")
-        finally:
-            if len(chat_states) == 0:
-                await home(update, context)
 
 
 home = Menu("Оберіть опцію", markups.home)
@@ -138,7 +161,7 @@ def run():
     app = ApplicationBuilder().token(TOKEN_BOT).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("home", home))
+    app.add_handler(CommandHandler("home", home.clear))
     app.add_handler(MessageHandler(filters.Regex(r"^Меню$"), menu))
     app.add_handler(MessageHandler(filters.Regex(r"^Переглянути доходи$"), menu_show_income))
     app.add_handler(MessageHandler(filters.Regex(r"^Переглянути витрати$"), menu_show_spending))
