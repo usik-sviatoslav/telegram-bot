@@ -39,8 +39,13 @@ class Menu:
 
     async def __call__(self, update: Update, context: CallbackContext) -> None:
         logging.info(f'Button "{update.message.text}" was triggered')
-        await update.message.delete()
-        logging.info("Message from user deleted.")
+
+        try:
+            await update.message.delete()
+            logging.info("❌ Message from user deleted ❌")
+        except Exception as exception:
+            logging.warning(f"⚠️ {exception} ⚠️")
+
         message = await update.message.reply_text(self.text, reply_markup=self.reply_markup)
 
         bot_commands = [
@@ -56,20 +61,16 @@ class Menu:
         else:
             bot_messages.append(0)
 
-        try:
-            if len(bot_messages) >= 2:
-                for message_id in bot_messages[:-1]:
-                    if message_id:
-                        if message_id == 0:
-                            bot_messages.pop(0)
-                        else:
-                            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-                            bot_messages.pop(0)
-                            logging.info("Message from bot deleted.")
-                            context.bot_data["bot_messages"] = [bot_messages[-1]]
-
-        except Exception as exception:
-            raise exception
+        if len(bot_messages) >= 2:
+            for message_id in bot_messages[:-1]:
+                if message_id:
+                    if message_id == 0:
+                        bot_messages.pop(0)
+                    else:
+                        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+                        bot_messages.pop(0)
+                        logging.info("❌ Message from bot  deleted ❌")
+                        context.bot_data["bot_messages"] = [bot_messages[-1]]
 
         if not update.message.text == "Назад":
             chat_states = context.bot_data.get("chat_states", [])
@@ -80,27 +81,33 @@ class Menu:
     async def back_to_previous(update: Update, context: CallbackContext) -> None:
         chat_states = context.bot_data.get("chat_states", [])
 
-        if chat_states[-1] == "Меню":
-            chat_states.pop()
-            await home(update, context)
-        elif chat_states[-1] == "Переглянути доходи":
-            chat_states.pop()
-            await menu(update, context)
-        elif chat_states[-1] == "Переглянути витрати":
-            chat_states.pop()
-            await menu(update, context)
-        elif chat_states[-1] == "Статистика":
-            chat_states.pop()
-            await menu(update, context)
-        elif chat_states[-1] == "Переглянути категорії":
-            chat_states.pop()
-            await menu(update, context)
-        elif chat_states[-1] == "Додати категорію":
-            chat_states.pop()
-            await menu_show_category(update, context)
-        elif chat_states[-1] == "Видалити категорію":
-            chat_states.pop()
-            await menu_show_category(update, context)
+        try:
+            if chat_states[-1] == "Меню":
+                chat_states.pop()
+                await home(update, context)
+            elif chat_states[-1] == "Переглянути доходи":
+                chat_states.pop()
+                await menu(update, context)
+            elif chat_states[-1] == "Переглянути витрати":
+                chat_states.pop()
+                await menu(update, context)
+            elif chat_states[-1] == "Статистика":
+                chat_states.pop()
+                await menu(update, context)
+            elif chat_states[-1] == "Переглянути категорії":
+                chat_states.pop()
+                await menu(update, context)
+            elif chat_states[-1] == "Додати категорію":
+                chat_states.pop()
+                await menu_show_category(update, context)
+            elif chat_states[-1] == "Видалити категорію":
+                chat_states.pop()
+                await menu_show_category(update, context)
+        except IndexError:
+            logging.warning(f"⚠️ List index out of range ⚠️")
+        finally:
+            if len(chat_states) == 0:
+                await home(update, context)
 
 
 home = Menu("Оберіть опцію", markups.home)
