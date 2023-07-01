@@ -1,4 +1,4 @@
-data = {
+data_structure_reference = {
     "chat_id": {
         "category_name_1": {
             "sub_category_name_1": {
@@ -36,3 +36,9 @@ data = {
 t = "Lorem ipsum dolor sit amet"
 large_list = [t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t]
 joined_text = "\n".join([f"{i+1}. {line}" for i, line in enumerate(large_list)])
+
+data = {
+}
+
+category = list(data.values())
+all_categories = "\n".join(category)

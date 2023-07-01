@@ -84,6 +84,12 @@ class Menu:
             chat_states.append(update.message.text)
             context.bot_data["chat_states"] = chat_states
 
+        if self.text:
+            if self.text == "Введіть назву нової категорії":
+                await input_from_user(update, context)
+            elif self.text == "Введіть назву категорії яку треба видалити":
+                await input_from_user(update, context)
+
     @staticmethod
     async def clear(update: Update, context: CallbackContext) -> None:
         await home(update, context)
@@ -125,10 +131,15 @@ class Menu:
             logging.warning(f"⚠️ List index out of range ⚠️")
 
 
+async def input_from_user(update: Update, context: CallbackContext) -> None:
+    user_id = update.message.from_user.id
+    text = update.message.text
+
+
 home = Menu("Оберіть опцію", markups.home)
 menu = Menu("Оберіть опцію", markups.menu)
 menu_show_income = Menu(data.joined_text, markups.menu_show_income)
-menu_show_spending = Menu("На екран виводиться список категорій.", markups.menu_show_spending)
+menu_show_spending = Menu(data.all_categories, markups.menu_show_spending)
 menu_show_statistic = Menu("Тут буде показано статистику.", markups.menu_show_statistic)
 menu_show_category = Menu("На екран виводиться список категорій.", markups.menu_show_category)
 menu_add_category = Menu("Введіть назву нової категорії", markups.menu_btn_back)
