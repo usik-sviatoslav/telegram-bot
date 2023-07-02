@@ -51,22 +51,25 @@ async def home(update: Update, context: CallbackContext) -> None:
     m_id = await update.message.reply_text("Оберіть опцію", reply_markup=nav.home)
     bot_message_command.append(m_id.message_id)
 
-    for message_id in reversed(bot_message):
-        await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-        bot_message.pop()
-
-    for message_id in bot_message_command[:-1]:
-        if message_id == 0:
-            bot_message_command.pop(0)
-        else:
+    try:
+        for message_id in reversed(bot_message):
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-            bot_message_command.pop(0)
-            context.bot_data["bot_message_command"] = [bot_message_command[-1]]
+            bot_message.pop()
+
+        for message_id in bot_message_command[:-1]:
+            if message_id == 0:
+                bot_message_command.pop(0)
+            else:
+                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+                bot_message_command.pop(0)
+                context.bot_data["bot_message_command"] = [bot_message_command[-1]]
+    except Exception as exception:
+        logging.warning(f"⚠️ {exception} ⚠️")
 
     logging.info("Clear ✔️")
 
 
-async def message_from_user(update: Update, context: CallbackContext) -> None:
+async def message_from_user(update: Update, context: CallbackContext, *args) -> None:
     bot_message_command = context.bot_data.get("bot_message_command", [])
     bot_message = context.bot_data.get("bot_message", [])
 
@@ -131,20 +134,30 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
             chat_states.append(update.message.text)
             context.bot_data["chat_states"] = chat_states
     else:
-        pass
+        chat_states = context.bot_data.get("chat_states", [])
+        try:
+            if chat_states[-1] == "Додати категорію":
+                user_id = update.message.from_user.id
+                text = update.message.text
+                await context.bot.send_message(chat_id=user_id, text=f"Отримано вашу відповідь: {text}")
+        except Exception as exception:
+            logging.warning(f"⚠️ {exception} ⚠️")
 
     context.bot_data["bot_message_command"] = bot_message_command
     context.bot_data["bot_message"] = bot_message
 
     # Видаляємо повідомлення від бота
-    for message_id in bot_message_command[:-1]:
-        if message_id == 0:
-            bot_message_command.pop(0)
-        else:
-            await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-            bot_message_command.pop(0)
-            logging.info("❌ Message from bot  deleted ❌")
-            context.bot_data["bot_message_command"] = [bot_message_command[-1]]
+    try:
+        for message_id in bot_message_command[:-1]:
+            if message_id == 0:
+                bot_message_command.pop(0)
+            else:
+                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+                bot_message_command.pop(0)
+                logging.info("❌ Message from bot  deleted ❌")
+                context.bot_data["bot_message_command"] = [bot_message_command[-1]]
+    except Exception as exception:
+        logging.warning(f"⚠️ {exception} ⚠️")
 
 
 async def back_to_previous(update: Update, context: CallbackContext) -> None:
