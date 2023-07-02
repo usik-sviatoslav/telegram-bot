@@ -135,11 +135,13 @@ async def message_from_user(update: Update, context: CallbackContext, *args) -> 
             context.bot_data["chat_states"] = chat_states
     else:
         chat_states = context.bot_data.get("chat_states", [])
+        user_id = update.message.from_user.id
+        text = update.message.text
         try:
             if chat_states[-1] == "Додати категорію":
-                user_id = update.message.from_user.id
-                text = update.message.text
-                await context.bot.send_message(chat_id=user_id, text=f"Отримано вашу відповідь: {text}")
+                await context.bot.send_message(chat_id=user_id, text=f"Додано нову категорію: {text}")
+            elif chat_states[-1] == "Видалити категорію":
+                await context.bot.send_message(chat_id=user_id, text=f"Видалено категорію: {text}")
         except Exception as exception:
             logging.warning(f"⚠️ {exception} ⚠️")
 
