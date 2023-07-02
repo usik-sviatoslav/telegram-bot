@@ -3,6 +3,11 @@ from telegram import ReplyKeyboardMarkup, KeyboardButton
 # ----------------------------------------------------------------------------------------------------------------------
 # Buttons
 # ----------------------------------------------------------------------------------------------------------------------
+buttons = [
+    "+", "-", "Переглянути доходи", "Переглянути витрати", "Додати", "Видалити", "Перейти на головну сторінку",
+    "Додати новий запис", "Меню", "Назад", "->", "Статистика", "Тиждень", "Місяць", "Попередній місяць", "Рік",
+    "Додати категорію", "Видалити категорію", "Переглянути категорії"
+]
 
 btn_income = KeyboardButton("+")
 btn_spending = KeyboardButton("-")
@@ -12,6 +17,7 @@ btn_show_spending = KeyboardButton("Переглянути витрати")
 btn_add = KeyboardButton("Додати")
 btn_remove = KeyboardButton("Видалити")
 
+btn_home = KeyboardButton("Перейти на головну сторінку")
 btn_new = KeyboardButton("Додати новий запис")
 btn_menu = KeyboardButton("Меню")
 btn_back = KeyboardButton("Назад")
@@ -62,5 +68,13 @@ menu_show_category = ReplyKeyboardMarkup(
 )
 menu_btn_back = ReplyKeyboardMarkup(
     [[btn_back]],
-    resize_keyboard=True, is_persistent=True, input_field_placeholder="Назва категорії: "
+    resize_keyboard=True, is_persistent=True
+)
+menu_income_spending = ReplyKeyboardMarkup(
+    [[btn_income, btn_spending], [btn_back]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+)
+menu_new_category = ReplyKeyboardMarkup(
+    [[btn_add_category], [btn_home]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )

@@ -33,21 +33,20 @@ data_structure_reference = {
     }
 }
 
-t = "Lorem ipsum dolor sit amet"
+t = "Lorem ipsum"
 large_list = [t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t, t]
 joined_text = "\n".join([f"{i+1}. {line}" for i, line in enumerate(large_list)])
 
-data = {id: "value"}
-sub_category_id = {list(data)}
-sub_category = {list(sub_category_id): list(data)}
-category = {list(sub_category), list(data)}
-data_base = {list(chat_id): list(category)}
+# chat_id = update.effective_chat.id
 
+# data = {id: "value"}
+# sub_category_id = {list(data)}
+# sub_category = {list(sub_category_id): list(data)}
+# category = {list(sub_category), list(data)}
+# data_base = {list(chat_id): list(category)}
+#
+#
+# category = list(data.values())
+# all_categories = "\n".join(category)
 
-category = list(data.values())
-all_categories = "\n".join(category)
-
-
-data_base = {list(chat_id): {list(category): list(list(sub_category): list(data)), list(data))}}
-
-chat_id = update.effective_chat.id
+# data_base = {list(chat_id): {list(category): list(list(sub_category): list(data)), list(data))}}
