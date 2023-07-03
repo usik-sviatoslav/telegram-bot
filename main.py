@@ -11,11 +11,8 @@ from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, Me
 
 async def start(update: Update, context: CallbackContext) -> None:
     logging.info('Command "/start" was triggered.')
-    try:
-        await update.message.delete()
-        logging.info("❌ Message from user deleted ❌")
-    except Exception as exception:
-        logging.warning(f"⚠️ {exception} ⚠️")
+
+    await delete_message_from_user(update)
 
     message_1 = await update.message.reply_text("Привіт! Давай розкажу що я взагалі вмію.\n")
     message_2 = await update.message.reply_text(
@@ -39,11 +36,8 @@ async def start(update: Update, context: CallbackContext) -> None:
 
 async def home(update: Update, context: CallbackContext) -> None:
     logging.info('Command "/home" was triggered.')
-    try:
-        await update.message.delete()
-        logging.info("❌ Message from user deleted ❌")
-    except Exception as exception:
-        logging.warning(f"⚠️ {exception} ⚠️")
+
+    await delete_message_from_user(update)
 
     bot_message = context.bot_data.get("bot_message", [])
     bot_message_command = context.bot_data.get("bot_message_command", [])
@@ -51,6 +45,7 @@ async def home(update: Update, context: CallbackContext) -> None:
     m_id = await update.message.reply_text("Оберіть параметр", reply_markup=nav.home)
     bot_message_command.append(m_id.message_id)
 
+    # Видаляємо усі повідомлення від бота
     try:
         for message_id in reversed(bot_message):
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
@@ -69,6 +64,14 @@ async def home(update: Update, context: CallbackContext) -> None:
     logging.info("Clear ✔️")
 
 
+async def delete_message_from_user(update: Update) -> None:
+    try:
+        await update.message.delete()
+        logging.info("❌ Message from user deleted ❌")
+    except Exception as exception:
+        logging.warning(f"⚠️ {exception} ⚠️")
+
+
 async def message_from_user(update: Update, context: CallbackContext) -> None:
     bot_message_command = context.bot_data.get("bot_message_command", [])
     bot_message = context.bot_data.get("bot_message", [])
@@ -76,12 +79,7 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
     chat_states = context.bot_data.get("chat_states", [])
     text = update.message.text
 
-    # Видаляємо повідомлення від користувача 80-84
-    try:
-        await update.message.delete()
-        logging.info("❌ Message from user deleted ❌")
-    except Exception as exception:
-        logging.warning(f"⚠️ {exception} ⚠️")
+    await delete_message_from_user(update)
 
     # Перевірка чи є введений текст викликає KeyboardButton 87-97
     message = update.message.text
@@ -195,6 +193,7 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
             else:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
                 bot_message_command.pop(0)
+            context.bot_data["bot_message_command"] = [bot_message_command[-1]]
 
         for bot_message_id in bot_message[:-1]:
             if bot_message_id == 0:
@@ -202,10 +201,9 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
             else:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=bot_message_id)
                 bot_message.pop(0)
+            context.bot_data["bot_message"] = [bot_message[-1]]
 
         logging.info("❌ Message from bot  deleted ❌")
-        context.bot_data["bot_message_command"] = [bot_message_command[-1]]
-        context.bot_data["bot_message"] = [bot_message[-1]]
 
     except Exception as exception:
         logging.warning(f"⚠️ {exception} ⚠️")
