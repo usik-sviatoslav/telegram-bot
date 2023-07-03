@@ -45,7 +45,7 @@ async def home(update: Update, context: CallbackContext) -> None:
     m_id = await update.message.reply_text("Оберіть параметр", reply_markup=nav.home)
     bot_message_command.append(m_id.message_id)
 
-    # Видаляємо усі повідомлення від бота
+    # Видаляємо усі повідомлення від бота 48-62
     try:
         for message_id in reversed(bot_message):
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
@@ -81,7 +81,7 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
 
     await delete_message_from_user(update)
 
-    # Перевірка чи є введений текст викликає KeyboardButton 87-97
+    # Перевірка чи введений текст викликає KeyboardButton 85-95
     message = update.message.text
     if message == "Додати новий запис" \
             or message == "Меню" \
@@ -94,7 +94,7 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
             or message == "Назад":
         logging.info(f'Button "{message}" was triggered')
 
-        # Виклик KeyboardButton 99-137
+        # Виклик KeyboardButton 97-135
         if message == "Додати новий запис":
             m_id = await reply_text("Оберіть категорію", reply_markup=nav.btn_back)
             bot_message_command.append(m_id.message_id)
@@ -135,7 +135,7 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
             await back_to_previous(update, context)
 
     else:
-        # Перевірка на кастомний текст 141-177
+        # Перевірка введеного тексту 140-183
         try:
             if chat_states[-1] == "Додати категорію":
                 if not message == "Перейти на головну сторінку":
@@ -163,6 +163,9 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
                 if message in data.t:
                     m_id = await reply_text(f"Обрано категорію: {text}", reply_markup=nav.menu_income_spending)
                     bot_message_command.append(m_id.message_id)
+                    chat_states = context.bot_data.get("chat_states", [])
+                    chat_states.append("Обрано категорію")
+                    context.bot_data["chat_states"] = chat_states
 
                 else:
                     if not message == "Перейти на головну сторінку":
@@ -171,10 +174,18 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
                     else:
                         await back_to_previous(update, context)
 
+            elif chat_states[-1] == "Обрано категорію":
+                if message == "+":
+                    m_id = await context.bot.send_message("Введіть суму доходу")
+                    bot_message_command.append(m_id.message_id)
+                elif message == "-":
+                    m_id = await context.bot.send_message("Введіть суму витрат")
+                    bot_message_command.append(m_id.message_id)
+
         except Exception as exception:
             logging.warning(f"⚠️ {exception} ⚠️")
 
-    # Визначаємо повідомленню поточний стан
+    # Визначаємо повідомленню поточний стан 180-188
     context.bot_data["bot_message_command"] = bot_message_command
     context.bot_data["bot_message"] = bot_message
 
@@ -185,7 +196,7 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
                 chat_states.append(update.message.text)
                 context.bot_data["chat_states"] = chat_states
 
-    # Видаляємо повідомлення від бота
+    # Видаляємо повідомлення від бота 191-211
     try:
         for message_id in bot_message_command[:-1]:
             if message_id == 0:
@@ -217,9 +228,12 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
     try:
         state = chat_states[-1]
         if state == "Меню" \
-                or state == "Додати новий запис":
-            chat_states.pop()
+                or state == "Додати новий запис" \
+                or state == "Обрано категорію":
+            for _ in reversed(chat_states):
+                chat_states.pop()
             await home(update, context)
+
         elif state == "Переглянути доходи" \
                 or state == "Переглянути витрати" \
                 or state == "Статистика" \
@@ -227,11 +241,13 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
             chat_states.pop()
             m_id = await reply_text("Оберіть параметр", reply_markup=nav.menu)
             bot_message_command.append(m_id.message_id)
+
         elif state == "Додати категорію" \
                 or state == "Видалити категорію":
             chat_states.pop()
             m_id = await reply_text("Оберіть параметр", reply_markup=nav.menu_show_category)
             bot_message_command.append(m_id.message_id)
+
     except IndexError:
         logging.warning(f"⚠️ List index out of range ⚠️")
         await home(update, context)
