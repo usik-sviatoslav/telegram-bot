@@ -1,4 +1,5 @@
 import logging
+import token
 import markups as nav
 import bot_data as data
 from telegram import Update
@@ -356,8 +357,6 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 # App
 # ----------------------------------------------------------------------------------------------------------------------
 
-# noinspection SpellCheckingInspection
-TOKEN_BOT = "6117967316:AAH3d5p-J-_D1mLHDCO6KEYr1pjYL7RcL8A"
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.basicConfig(
@@ -367,7 +366,7 @@ logging.basicConfig(
 
 
 def run():
-    app = ApplicationBuilder().token(TOKEN_BOT).build()
+    app = ApplicationBuilder().token(token.TOKEN_BOT).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("home", home))
