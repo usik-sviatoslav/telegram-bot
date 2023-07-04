@@ -1,5 +1,5 @@
 import logging
-import token
+import my_token as token
 import markups as nav
 import bot_data as data
 from telegram import Update
