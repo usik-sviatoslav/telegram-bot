@@ -223,8 +223,17 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
             await back_to_previous(update, context)
 
     elif chat_states[-1] == "Статистика":
-        if message:
-            pass
+        if message == "Тиждень":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Місяць":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Рік":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
 
         elif message == "Назад":
             await back_to_previous(update, context)
@@ -284,7 +293,8 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
             else:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
                 bot_message_command.pop(0)
-            context.bot_data["bot_message_command"] = [bot_message_command[-1]]
+                context.bot_data["bot_message_command"] = [bot_message_command[-1]]
+                logging.info("❌ Message from bot  deleted ❌")
 
         for bot_message_id in bot_message[:-1]:
             if bot_message_id == 0:
@@ -292,9 +302,8 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
             else:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=bot_message_id)
                 bot_message.pop(0)
-            context.bot_data["bot_message"] = [bot_message[-1]]
-
-        logging.info("❌ Message from bot  deleted ❌")
+                context.bot_data["bot_message"] = [bot_message[-1]]
+                logging.info("❌ Message from bot  deleted ❌")
 
     except Exception as exception:
         logging.warning(f"⚠️ {exception} ⚠️")
