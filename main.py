@@ -1,4 +1,5 @@
 import logging
+import token
 import markups as nav
 import bot_data as data
 from telegram import Update
@@ -77,7 +78,71 @@ async def delete_message_from_user(update: Update) -> None:
         logging.warning(f"⚠️ {exception} ⚠️")
 
 
-async def message_from_user(update: Update, context: CallbackContext) -> None:
+async def delete_message_from_bot(update: Update, context: CallbackContext) -> None:
+    bot_message_command = context.bot_data.get("bot_message_command", [])
+    bot_message = context.bot_data.get("bot_message", [])
+
+    try:
+        for message_id in bot_message_command[:-1]:
+            if message_id == 0:
+                bot_message_command.pop(0)
+            else:
+                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
+                bot_message_command.pop(0)
+                context.bot_data["bot_message_command"] = [bot_message_command[-1]]
+                logging.info("❌ Message from bot  deleted ❌")
+
+        for bot_message_id in bot_message[:-1]:
+            if bot_message_id == 0:
+                bot_message.pop(0)
+            else:
+                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=bot_message_id)
+                bot_message.pop(0)
+                context.bot_data["bot_message"] = [bot_message[-1]]
+                logging.info("❌ Message from bot  deleted ❌")
+
+    except Exception as exception:
+        logging.warning(f"⚠️ {exception} ⚠️")
+
+
+async def back_to_previous(update: Update, context: CallbackContext) -> None:
+    logging.info(f'Button "Назад" was triggered')
+
+    chat_states = context.bot_data.get("chat_states", [])
+    reply_text = update.message.reply_text
+    bot_message_command = context.bot_data.get("bot_message_command", [])
+
+    try:
+        state = chat_states[-1]
+        if state == "Меню" \
+                or state == "Додати новий запис" \
+                or state == "Обрано категорію":
+            for _ in reversed(chat_states):
+                chat_states.pop()
+            await home(update, context)
+
+        elif state == "Переглянути доходи" \
+                or state == "Переглянути витрати" \
+                or state == "Статистика" \
+                or state == "Переглянути категорії":
+            chat_states.pop()
+            m_id = await reply_text("Оберіть параметр", reply_markup=nav.menu)
+            bot_message_command.append(m_id.message_id)
+
+        elif state == "Додати категорію" \
+                or state == "Видалити категорію":
+            chat_states.pop()
+            m_id = await reply_text("Оберіть параметр", reply_markup=nav.menu_show_category)
+            bot_message_command.append(m_id.message_id)
+
+    except IndexError:
+        logging.warning(f"⚠️ List index out of range ⚠️")
+        await home(update, context)
+
+    context.bot_data["bot_message_command"] = bot_message_command
+
+
+async def message_handler(update: Update, context: CallbackContext) -> None:
     bot_message_command = context.bot_data.get("bot_message_command", [])
     bot_message = context.bot_data.get("bot_message", [])
     reply_text = update.message.reply_text
@@ -86,7 +151,7 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
 
     await delete_message_from_user(update)
 
-    # Перевірка введеного тексту 90-273
+    # Перевірка введеного тексту 154-346
     if len(chat_states) == 0:
         if message == "Додати новий запис":
             logging.info(f'Button "{message}" was triggered')
@@ -223,8 +288,17 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
             await back_to_previous(update, context)
 
     elif chat_states[-1] == "Статистика":
-        if message:
-            pass
+        if message == "Тиждень":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Місяць":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Рік":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
 
         elif message == "Назад":
             await back_to_previous(update, context)
@@ -276,73 +350,13 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
     context.bot_data["bot_message_command"] = bot_message_command
     context.bot_data["bot_message"] = bot_message
 
-    # Видаляємо повідомлення від бота 280-300
-    try:
-        for message_id in bot_message_command[:-1]:
-            if message_id == 0:
-                bot_message_command.pop(0)
-            else:
-                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
-                bot_message_command.pop(0)
-            context.bot_data["bot_message_command"] = [bot_message_command[-1]]
-
-        for bot_message_id in bot_message[:-1]:
-            if bot_message_id == 0:
-                bot_message.pop(0)
-            else:
-                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=bot_message_id)
-                bot_message.pop(0)
-            context.bot_data["bot_message"] = [bot_message[-1]]
-
-        logging.info("❌ Message from bot  deleted ❌")
-
-    except Exception as exception:
-        logging.warning(f"⚠️ {exception} ⚠️")
-
-
-async def back_to_previous(update: Update, context: CallbackContext) -> None:
-    logging.info(f'Button "Назад" was triggered')
-
-    chat_states = context.bot_data.get("chat_states", [])
-    reply_text = update.message.reply_text
-    bot_message_command = context.bot_data.get("bot_message_command", [])
-
-    try:
-        state = chat_states[-1]
-        if state == "Меню" \
-                or state == "Додати новий запис" \
-                or state == "Обрано категорію":
-            for _ in reversed(chat_states):
-                chat_states.pop()
-            await home(update, context)
-
-        elif state == "Переглянути доходи" \
-                or state == "Переглянути витрати" \
-                or state == "Статистика" \
-                or state == "Переглянути категорії":
-            chat_states.pop()
-            m_id = await reply_text("Оберіть параметр", reply_markup=nav.menu)
-            bot_message_command.append(m_id.message_id)
-
-        elif state == "Додати категорію" \
-                or state == "Видалити категорію":
-            chat_states.pop()
-            m_id = await reply_text("Оберіть параметр", reply_markup=nav.menu_show_category)
-            bot_message_command.append(m_id.message_id)
-
-    except IndexError:
-        logging.warning(f"⚠️ List index out of range ⚠️")
-        await home(update, context)
-
-    context.bot_data["bot_message_command"] = bot_message_command
+    await delete_message_from_bot(update, context)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 # App
 # ----------------------------------------------------------------------------------------------------------------------
 
-# noinspection SpellCheckingInspection
-TOKEN_BOT = "6117967316:AAH3d5p-J-_D1mLHDCO6KEYr1pjYL7RcL8A"
 
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.basicConfig(
@@ -352,11 +366,11 @@ logging.basicConfig(
 
 
 def run():
-    app = ApplicationBuilder().token(TOKEN_BOT).build()
+    app = ApplicationBuilder().token(token.TOKEN_BOT).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("home", home))
-    app.add_handler(MessageHandler(filters.Regex(r"[\w+]?[→]?"), message_from_user))
+    app.add_handler(MessageHandler(filters.Regex(r"[\w+]?[→]?"), message_handler))
 
     app.run_polling()
 
