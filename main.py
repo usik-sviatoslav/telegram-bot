@@ -80,7 +80,7 @@ async def delete_message_from_user(update: Update) -> None:
 async def delete_message_from_bot(update: Update, context: CallbackContext) -> None:
     bot_message_command = context.bot_data.get("bot_message_command", [])
     bot_message = context.bot_data.get("bot_message", [])
-    # Видаляємо повідомлення від бота 280-300
+
     try:
         for message_id in bot_message_command[:-1]:
             if message_id == 0:
@@ -150,7 +150,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
     await delete_message_from_user(update)
 
-    # Перевірка введеного тексту 90-273
+    # Перевірка введеного тексту 154-346
     if len(chat_states) == 0:
         if message == "Додати новий запис":
             logging.info(f'Button "{message}" was triggered')
