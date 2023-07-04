@@ -41,11 +41,12 @@ async def home(update: Update, context: CallbackContext) -> None:
 
     bot_message = context.bot_data.get("bot_message", [])
     bot_message_command = context.bot_data.get("bot_message_command", [])
+    chat_states = context.bot_data.get("chat_states", [])
 
     m_id = await update.message.reply_text("Оберіть параметр", reply_markup=nav.home)
     bot_message_command.append(m_id.message_id)
 
-    # Видаляємо усі повідомлення від бота 48-62
+    # Видаляємо усі повідомлення від бота та очищаємо chat_states 50-67
     try:
         for message_id in reversed(bot_message):
             await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
@@ -58,6 +59,10 @@ async def home(update: Update, context: CallbackContext) -> None:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=message_id)
                 bot_message_command.pop(0)
                 context.bot_data["bot_message_command"] = [bot_message_command[-1]]
+
+        for _ in reversed(chat_states):
+            chat_states.pop()
+
     except Exception as exception:
         logging.warning(f"⚠️ {exception} ⚠️")
 
@@ -77,126 +82,201 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
     bot_message = context.bot_data.get("bot_message", [])
     reply_text = update.message.reply_text
     chat_states = context.bot_data.get("chat_states", [])
-    text = update.message.text
+    message = update.message.text
 
     await delete_message_from_user(update)
 
-    # Перевірка чи введений текст викликає KeyboardButton 85-95
-    message = update.message.text
-    if message == "Додати новий запис" \
-            or message == "Меню" \
-            or message == "Переглянути доходи" \
-            or message == "Переглянути витрати" \
-            or message == "Статистика" \
-            or message == "Переглянути категорії" \
-            or message == "Додати категорію" \
-            or message == "Видалити категорію" \
-            or message == "Назад":
-        logging.info(f'Button "{message}" was triggered')
-
-        # Виклик KeyboardButton 97-135
+    # Перевірка введеного тексту 90-273
+    if len(chat_states) == 0:
         if message == "Додати новий запис":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
             m_id = await reply_text("Оберіть категорію", reply_markup=nav.btn_back)
             bot_message_command.append(m_id.message_id)
 
         elif message == "Меню":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
             m_id = await reply_text("Оберіть параметр", reply_markup=nav.menu)
             bot_message_command.append(m_id.message_id)
 
-        elif message == "Переглянути доходи":
+        elif message == "Назад":
+            await back_to_previous(update, context)
+
+    elif chat_states[-1] == "Додати новий запис":
+        if message in data.t:
+            logging.info(f'Category "{message}" was selected')
+            chat_states.append("Обрано категорію")
+
+            m_id = await reply_text(f"Обрано категорію: {message}", reply_markup=nav.menu_income_spending)
+            bot_message_command.append(m_id.message_id)
+
+        elif message == "Додати категорію":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
+            m_id = await reply_text("Введіть назву нової категорії", reply_markup=nav.menu_btn_back)
+            bot_message_command.append(m_id.message_id)
+
+        elif message == "Перейти на головну сторінку":
+            await home(update, context)
+
+        else:
+            logging.info(f'No category "{message}"')
+
+            m_id = await reply_text(f'Категорії "{message}" немає', reply_markup=nav.menu_new_category)
+            bot_message_command.append(m_id.message_id)
+
+    elif chat_states[-1] == "Обрано категорію":
+        if message == "+":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
+            m_id = await context.bot.send_message("Введіть суму доходу")
+            bot_message_command.append(m_id.message_id)
+        elif message == "-":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
+            m_id = await context.bot.send_message("Введіть суму витрат")
+            bot_message_command.append(m_id.message_id)
+
+        elif message == "Назад":
+            await back_to_previous(update, context)
+
+    elif chat_states[-1] == "Меню":
+        if message == "Переглянути доходи":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
             m_id = await reply_text(data.joined_text, reply_markup=nav.menu_show_income)
             bot_message.append(m_id.message_id)
             bot_message_command.append(0)
 
         elif message == "Переглянути витрати":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
             m_id = await reply_text("data.all_categories", reply_markup=nav.menu_show_spending)
             bot_message.append(m_id.message_id)
             bot_message_command.append(0)
 
         elif message == "Статистика":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
             m_id = await reply_text("Тут буде показано статистику.", reply_markup=nav.menu_show_statistic)
             bot_message.append(m_id.message_id)
             bot_message_command.append(0)
 
         elif message == "Переглянути категорії":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
             m_id = await reply_text("На екран виводиться список категорій.", reply_markup=nav.menu_show_category)
             bot_message.append(m_id.message_id)
             bot_message_command.append(0)
 
-        elif message == "Додати категорію":
+        elif message == "Назад":
+            await back_to_previous(update, context)
+
+    elif chat_states[-1] == "Переглянути доходи":
+        if message == "Попередній місяць":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "→":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Видалити":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Додати":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Назад":
+            await back_to_previous(update, context)
+
+    elif chat_states[-1] == "Переглянути витрати":
+        if message == "Попередній місяць":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "→":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Видалити":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Додати":
+            logging.info(f'Button "{message}" was triggered')
+            # chat_states.append(message)
+
+        elif message == "Назад":
+            await back_to_previous(update, context)
+
+    elif chat_states[-1] == "Статистика":
+        if message:
+            pass
+
+        elif message == "Назад":
+            await back_to_previous(update, context)
+
+    elif chat_states[-1] == "Переглянути категорії":
+        if message == "Додати категорію":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
             m_id = await reply_text("Введіть назву нової категорії", reply_markup=nav.menu_btn_back)
             bot_message_command.append(m_id.message_id)
 
         elif message == "Видалити категорію":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
             m_id = await reply_text("Введіть назву категорії яку треба видалити", reply_markup=nav.menu_btn_back)
             bot_message_command.append(m_id.message_id)
 
         elif message == "Назад":
             await back_to_previous(update, context)
 
-    else:
-        # Перевірка введеного тексту 140-183
-        try:
-            if chat_states[-1] == "Додати категорію":
-                if not message == "Перейти на головну сторінку":
-                    m_id = await reply_text(
-                        f"Додано нову категорію: {text}\n\n{'Тут буде оновлений список категорій'}",
-                        reply_markup=nav.menu_btn_back
-                    )
-                    bot_message.append(m_id.message_id)
-                    bot_message_command.append(0)
-                else:
-                    await back_to_previous(update, context)
+    elif chat_states[-1] == "Додати категорію":
+        if not message == "Назад":
+            m_id = await reply_text(
+                f"Додано нову категорію: {message}\n\n{'Тут буде оновлений список категорій'}",
+                reply_markup=nav.menu_btn_back
+            )
+            bot_message.append(m_id.message_id)
+            bot_message_command.append(0)
+        else:
+            if len(chat_states) == 2:
+                await home(update, context)
+            else:
+                await back_to_previous(update, context)
 
-            elif chat_states[-1] == "Видалити категорію":
-                if not message == "Перейти на головну сторінку":
-                    m_id = await reply_text(
-                        f"Видалено категорію: {text}\n\n{'Тут буде оновлений список категорій'}",
-                        reply_markup=nav.menu_btn_back
-                    )
-                    bot_message.append(m_id.message_id)
-                    bot_message_command.append(0)
-                else:
-                    await back_to_previous(update, context)
+    elif chat_states[-1] == "Видалити категорію":
+        if not message == "Назад":
+            m_id = await reply_text(
+                f"Видалено категорію: {message}\n\n{'Тут буде оновлений список категорій'}",
+                reply_markup=nav.menu_btn_back
+            )
+            bot_message.append(m_id.message_id)
+            bot_message_command.append(0)
+        else:
+            await back_to_previous(update, context)
 
-            elif chat_states[-1] == "Додати новий запис":
-                if message in data.t:
-                    m_id = await reply_text(f"Обрано категорію: {text}", reply_markup=nav.menu_income_spending)
-                    bot_message_command.append(m_id.message_id)
-                    chat_states = context.bot_data.get("chat_states", [])
-                    chat_states.append("Обрано категорію")
-                    context.bot_data["chat_states"] = chat_states
-
-                else:
-                    if not message == "Перейти на головну сторінку":
-                        m_id = await reply_text(f'Категорії "{text}" немає', reply_markup=nav.menu_new_category)
-                        bot_message_command.append(m_id.message_id)
-                    else:
-                        await back_to_previous(update, context)
-
-            elif chat_states[-1] == "Обрано категорію":
-                if message == "+":
-                    m_id = await context.bot.send_message("Введіть суму доходу")
-                    bot_message_command.append(m_id.message_id)
-                elif message == "-":
-                    m_id = await context.bot.send_message("Введіть суму витрат")
-                    bot_message_command.append(m_id.message_id)
-
-        except Exception as exception:
-            logging.warning(f"⚠️ {exception} ⚠️")
-
-    # Визначаємо повідомленню поточний стан 180-188
+    context.bot_data["chat_states"] = chat_states
     context.bot_data["bot_message_command"] = bot_message_command
     context.bot_data["bot_message"] = bot_message
 
-    if not message == "Назад":
-        if message in nav.buttons:
-            if not message == "Перейти на головну сторінку":
-                chat_states = context.bot_data.get("chat_states", [])
-                chat_states.append(update.message.text)
-                context.bot_data["chat_states"] = chat_states
-
-    # Видаляємо повідомлення від бота 191-211
+    # Видаляємо повідомлення від бота 280-300
     try:
         for message_id in bot_message_command[:-1]:
             if message_id == 0:
@@ -221,6 +301,8 @@ async def message_from_user(update: Update, context: CallbackContext) -> None:
 
 
 async def back_to_previous(update: Update, context: CallbackContext) -> None:
+    logging.info(f'Button "Назад" was triggered')
+
     chat_states = context.bot_data.get("chat_states", [])
     reply_text = update.message.reply_text
     bot_message_command = context.bot_data.get("bot_message_command", [])
@@ -274,7 +356,7 @@ def run():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("home", home))
-    app.add_handler(MessageHandler(filters.Regex(r"\w+"), message_from_user))
+    app.add_handler(MessageHandler(filters.Regex(r"[\w+]?[→]?"), message_from_user))
 
     app.run_polling()
 

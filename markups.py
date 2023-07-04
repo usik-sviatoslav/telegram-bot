@@ -21,7 +21,7 @@ btn_home = KeyboardButton("Перейти на головну сторінку")
 btn_new = KeyboardButton("Додати новий запис")
 btn_menu = KeyboardButton("Меню")
 btn_back = KeyboardButton("Назад")
-btn_forward = KeyboardButton("->")
+btn_forward = KeyboardButton("→")
 
 btn_statistic = KeyboardButton("Статистика")
 btn_week = KeyboardButton("Тиждень")
