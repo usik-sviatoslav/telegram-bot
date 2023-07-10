@@ -15,10 +15,16 @@ from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, Me
 async def start(update: Update, context: CallbackContext) -> None:
     logging.info('Command "/start" was triggered.')
 
+    with open("bot_data.json", "r+") as file:
+        data_base = json.load(file)
+
+    reply_text = update.message.reply_text
+    user_id = str(update.effective_chat.id)
+
     await delete_message_from_user(update)
 
-    message_1 = await update.message.reply_text("Привіт! Давай розкажу що я взагалі вмію.\n")
-    message_2 = await update.message.reply_text(
+    message_1 = await reply_text("Привіт! Давай розкажу що я взагалі вмію.\n")
+    message_2 = await reply_text(
         "Операції:\n"
         "• Додавати витрати та доходи\n"
         "• Видаляти створені операції\n\n"
@@ -31,10 +37,7 @@ async def start(update: Update, context: CallbackContext) -> None:
         "• Переглядати загальну статистику\n",
         reply_markup=nav.home
     )
-    with open("bot_data.json", "r+") as file:
-        data_base = json.load(file)
 
-    user_id = str(update.effective_chat.id)
     if user_id in data_base:
         data_base[user_id]["bot_message_info"] = [message_1.message_id, message_2.message_id]
     else:
@@ -46,45 +49,45 @@ async def start(update: Update, context: CallbackContext) -> None:
         data_base[user_id] = {
             "bot_message_info": [message_1.message_id, message_2.message_id],
             "bot_message": [],
+            "chat_states": [],
+            "selected_category": [],
             "category": {}
         }
 
     with open("bot_data.json", "w") as file:
         json.dump(data_base, file, indent=4)
 
-    bot_message_info = context.bot_data.get("bot_message_info", [])
-    bot_message_info.append(message_1.message_id)
-    bot_message_info.append(message_2.message_id)
-    context.bot_data["bot_message_info"] = bot_message_info
-
 
 async def home(update: Update, context: CallbackContext) -> None:
     logging.info('Command "/home" was triggered.')
 
-    await delete_message_from_user(update)
+    with open("bot_data.json", "r+") as file:
+        data_base = json.load(file)
 
-    bot_message = context.bot_data.get("bot_message", [])
-    bot_message_info = context.bot_data.get("bot_message_info", [])
-    chat_states = context.bot_data.get("chat_states", [])
-    selected_category = context.bot_data.get("selected_category", [])
-    chat_id = update.effective_chat.id
+    user_id = str(update.effective_chat.id)
+
+    bot_message_info = data_base[user_id]["bot_message_info"]
+    bot_message = data_base[user_id]["bot_message"]
+    chat_states = data_base[user_id]["chat_states"]
+    selected_category = data_base[user_id]["selected_category"]
+
+    await delete_message_from_user(update)
 
     m_id = await update.message.reply_text("Оберіть параметр", reply_markup=nav.home)
     bot_message_info.append(m_id.message_id)
 
-    # Видаляємо усі повідомлення від бота та очищаємо chat_states 51-68
+    # Видаляємо усі повідомлення від бота та очищаємо chat_states
     try:
         for message_id in reversed(bot_message):
-            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+            await context.bot.delete_message(user_id, message_id)
             bot_message.pop()
 
         for message_id in bot_message_info[:-1]:
             if message_id == 0:
                 bot_message_info.pop(0)
             else:
-                await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+                await context.bot.delete_message(user_id, message_id)
                 bot_message_info.pop(0)
-                context.bot_data["bot_message_info"] = [bot_message_info[-1]]
 
         for _ in reversed(chat_states):
             chat_states.pop()
@@ -94,6 +97,9 @@ async def home(update: Update, context: CallbackContext) -> None:
 
     except Exception as exception:
         logging.warning(f"⚠️ {exception} ⚠️")
+
+    with open("bot_data.json", "w") as file:
+        json.dump(data_base, file, indent=4)
 
     logging.info("Clear ✔️")
 
@@ -107,17 +113,22 @@ async def delete_message_from_user(update: Update) -> None:
 
 
 async def delete_message_from_bot(update: Update, context: CallbackContext) -> None:
-    bot_message_info = context.bot_data.get("bot_message_info", [])
-    bot_message = context.bot_data.get("bot_message", [])
-    chat_id = update.effective_chat.id
+
+    with open("bot_data.json", "r+") as file:
+        data_base = json.load(file)
+
+    user_id = str(update.effective_chat.id)
     delete_message = context.bot.delete_message
+
+    bot_message_info = data_base[user_id]["bot_message_info"]
+    bot_message = data_base[user_id]["bot_message"]
 
     try:
         for message_id in bot_message_info[:-1]:
             if message_id == 0:
                 bot_message_info.pop(0)
             else:
-                await delete_message(chat_id=chat_id, message_id=message_id)
+                await delete_message(user_id, message_id)
                 context.bot_data["bot_message_info"] = [bot_message_info[-1]]
                 bot_message_info.pop(0)
                 logging.info("❌ Message from bot  deleted ❌")
@@ -126,7 +137,7 @@ async def delete_message_from_bot(update: Update, context: CallbackContext) -> N
             if bot_message_id == 0:
                 bot_message.pop(0)
             else:
-                await delete_message(chat_id=chat_id, message_id=bot_message_id)
+                await delete_message(user_id, bot_message_id)
                 context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message.pop(0)
                 logging.info("❌ Message from bot  deleted ❌")
@@ -134,16 +145,23 @@ async def delete_message_from_bot(update: Update, context: CallbackContext) -> N
     except Exception as exception:
         logging.warning(f"⚠️ {exception} ⚠️")
 
+    with open("bot_data.json", "w") as file:
+        json.dump(data_base, file, indent=4)
+
 
 async def back_to_previous(update: Update, context: CallbackContext) -> None:
     logging.info(f'Button "Назад" was triggered')
 
-    chat_states = context.bot_data.get("chat_states", [])
+    with open("bot_data.json", "r+") as file:
+        data_base = json.load(file)
+
+    user_id = str(update.effective_chat.id)
     reply_text = update.message.reply_text
-    bot_message_info = context.bot_data.get("bot_message_info", [])
-    bot_message = context.bot_data.get("bot_message", [])
     delete_message = context.bot.delete_message
-    chat_id = update.effective_chat.id
+
+    bot_message_info = data_base[user_id]["bot_message_info"]
+    bot_message = data_base[user_id]["bot_message"]
+    chat_states = data_base[user_id]["chat_states"]
 
     try:
         state = chat_states[-1]
@@ -152,7 +170,13 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
                 or state == "Обрано категорію":
             for _ in reversed(chat_states):
                 chat_states.pop()
+
+            with open("bot_data.json", "w") as file:
+                json.dump(data_base, file, indent=4)
+
             await home(update, context)
+            with open("bot_data.json", "r+") as file:
+                data_base = json.load(file)
 
         elif state == "Переглянути доходи" \
                 or state == "Переглянути витрати" \
@@ -162,7 +186,7 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
             m_id = await reply_text("Оберіть параметр", reply_markup=nav.menu)
             bot_message_info.append(m_id.message_id)
             if len(bot_message) != 0:
-                await delete_message(chat_id=chat_id, message_id=bot_message[0])
+                await delete_message(user_id, bot_message[0])
                 context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message.pop(0)
 
@@ -176,27 +200,28 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
         logging.warning(f"⚠️ List index out of range ⚠️")
         await home(update, context)
 
-    context.bot_data["bot_message_info"] = bot_message_info
+    with open("bot_data.json", "w") as file:
+        json.dump(data_base, file, indent=4)
 
 
 async def message_handler(update: Update, context: CallbackContext) -> None:
+
     with open("bot_data.json", "r+") as file:
         data_base = json.load(file)
 
-    bot_message_info = context.bot_data.get("bot_message_info", [])
-    bot_message = context.bot_data.get("bot_message", [])
-    chat_states = context.bot_data.get("chat_states", [])
-    reply_text = update.message.reply_text
-    chat_id = update.effective_chat.id
     message = update.message.text
+    reply_text = update.message.reply_text
     send_message = context.bot.send_message
     delete_message = context.bot.delete_message
-
     user_id = str(update.effective_chat.id)
+    current_date = str(datetime.datetime.now().date())
+
+    bot_message_info = data_base[user_id]["bot_message_info"]
+    bot_message = data_base[user_id]["bot_message"]
+    chat_states = data_base[user_id]["chat_states"]
+    selected_category = data_base[user_id]["selected_category"]
     category = data_base[user_id]['category']
     category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(category)])
-    selected_category = context.bot_data.get("selected_category", [])
-    current_date = str(datetime.datetime.now().date())
 
     await delete_message_from_user(update)
 
@@ -227,6 +252,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
+            with open("bot_data.json", "r+") as file:
+                data_base = json.load(file)
 
     elif chat_states[-1] == "Додати новий запис":
         if message in category:
@@ -246,6 +273,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Перейти на головну сторінку":
             await home(update, context)
+            with open("bot_data.json", "r+") as file:
+                data_base = json.load(file)
 
         else:
             logging.info(f'No category "{message}"')
@@ -258,17 +287,19 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
 
-            m_id = await send_message(chat_id, "Введіть суму доходу")
+            m_id = await send_message(user_id, "Введіть суму доходу")
             bot_message_info.append(m_id.message_id)
         elif message == "-":
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
 
-            m_id = await send_message(chat_id, "Введіть суму витрат")
+            m_id = await send_message(user_id, "Введіть суму витрат")
             bot_message_info.append(m_id.message_id)
 
         elif message == "Назад":
             await back_to_previous(update, context)
+            with open("bot_data.json", "r+") as file:
+                data_base = json.load(file)
 
     elif chat_states[-1] == "+" or chat_states[-1] == "-":
         if message.isdigit():
@@ -280,10 +311,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                     category[selected_category[0]][current_date]["income"].extend([int(message)])
                 selected_category.pop()
 
-                with open("bot_data.json", "w") as file:
-                    json.dump(data_base, file, indent=4)
-
-                m_id = await send_message(chat_id, f"До категорії додано {message} грн.")
+                m_id = await send_message(user_id, f"До категорії додано {message} грн.")
                 bot_message_info.append(m_id.message_id)
 
             elif chat_states[-1] == "-":
@@ -294,20 +322,17 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                     category[selected_category[0]][current_date]["spending"].extend([int(message)])
                 selected_category.pop()
 
-                with open("bot_data.json", "w") as file:
-                    json.dump(data_base, file, indent=4)
-
-                m_id = await send_message(chat_id, f"До категорії додано -{message} грн.")
+                m_id = await send_message(user_id, f"До категорії додано -{message} грн.")
                 bot_message_info.append(m_id.message_id)
 
             chat_states.append("До категорії додано")
-            await delete_message(chat_id=chat_id, message_id=bot_message_info[0])
+            await delete_message(user_id, bot_message_info[0])
             context.bot_data["bot_message_info"] = [bot_message_info[-1]]
             bot_message_info.pop(0)
             time.sleep(2)
 
         else:
-            m_id = await send_message(chat_id, f"Введіть число")
+            m_id = await send_message(user_id, f"Введіть число")
             bot_message_info.append(m_id.message_id)
 
     elif chat_states[-1] == "Меню":
@@ -349,6 +374,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
+            with open("bot_data.json", "r+") as file:
+                data_base = json.load(file)
 
     elif chat_states[-1] == "Переглянути доходи" or chat_states[-1] == "Переглянути витрати":
         # Спільні характеристики
@@ -362,6 +389,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
+            with open("bot_data.json", "r+") as file:
+                data_base = json.load(file)
 
         # Різні характеристики
         if chat_states[-1] == "Переглянути доходи":
@@ -397,6 +426,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
+            with open("bot_data.json", "r+") as file:
+                data_base = json.load(file)
 
     elif chat_states[-1] == "Переглянути категорії":
         if message == "Додати категорію":
@@ -425,6 +456,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
+            with open("bot_data.json", "r+") as file:
+                data_base = json.load(file)
 
     elif chat_states[-1] == "Додати категорію" or chat_states[-1] == "Видалити категорію":
         if not message == "Назад":
@@ -437,12 +470,9 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 del_category = data_base[user_id]['category']
                 del_category.pop(message)
 
-            with open("bot_data.json", "w") as file:
-                json.dump(data_base, file, indent=4)
-
             # Повідомляємо про створення / видалення категорії
             if chat_states[-1] == "Додати категорію":
-                m_id = await send_message(chat_id, f'Додано нову категорію "{message}"')
+                m_id = await send_message(user_id, f'Додано нову категорію "{message}"')
                 bot_message_info.append(m_id.message_id)
 
             elif chat_states[-1] == "Видалити категорію":
@@ -451,7 +481,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                     m_id = await reply_text("Усі категорії видалено!", reply_markup=nav.menu_show_category)
                     bot_message_info.append(m_id.message_id)
                 else:
-                    m_id = await send_message(chat_id, f'Видалено категорію "{message}"')
+                    m_id = await send_message(user_id, f'Видалено категорію "{message}"')
                     bot_message_info.append(m_id.message_id)
 
             # Виводимо оновлений список категорій
@@ -462,35 +492,37 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             # Видаляємо повідомлення та повідомлення котре потрібно видалити з затримкою
             if len(bot_message) == 2:
-                await delete_message(chat_id=chat_id, message_id=bot_message[0])
+                await delete_message(user_id, bot_message[0])
                 context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message.pop(0)
 
             if len(bot_message_info) == 2:
-                await delete_message(chat_id=chat_id, message_id=bot_message_info[0])
+                await delete_message(user_id, bot_message_info[0])
                 context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message_info.pop(0)
 
             if len(category) != 0:
                 time.sleep(2)
-                await delete_message(chat_id=chat_id, message_id=bot_message_info[0])
+                await delete_message(user_id, bot_message_info[0])
                 context.bot_data["bot_message"] = [bot_message_info[-1]]
                 bot_message_info.pop(0)
             else:
-                await delete_message(chat_id=chat_id, message_id=bot_message[0])
+                await delete_message(user_id, bot_message[0])
                 context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message.pop(0)
 
         else:
             if len(chat_states) <= 2:
                 await home(update, context)
+                with open("bot_data.json", "r+") as file:
+                    data_base = json.load(file)
             else:
                 await back_to_previous(update, context)
+                with open("bot_data.json", "r+") as file:
+                    data_base = json.load(file)
 
-    context.bot_data["chat_states"] = chat_states
-    context.bot_data["bot_message_info"] = bot_message_info
-    context.bot_data["bot_message"] = bot_message
-    context.bot_data["selected_category"] = selected_category
+    with open("bot_data.json", "w") as file:
+        json.dump(data_base, file, indent=4)
 
     try:
         if chat_states[-1] == "До категорії додано":
