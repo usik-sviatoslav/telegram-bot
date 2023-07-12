@@ -9,10 +9,10 @@ buttons = [
     "Додати категорію", "Видалити категорію", "Переглянути категорії"
 ]
 
-btn_income = KeyboardButton("+")
-btn_spending = KeyboardButton("-")
-btn_show_income = KeyboardButton("Переглянути доходи")
-btn_show_spending = KeyboardButton("Переглянути витрати")
+btn_incomes = KeyboardButton("+")
+btn_expenses = KeyboardButton("-")
+btn_show_incomes = KeyboardButton("Переглянути доходи")
+btn_show_expenses = KeyboardButton("Переглянути витрати")
 
 btn_add = KeyboardButton("Додати")
 btn_remove = KeyboardButton("Видалити")
@@ -42,19 +42,19 @@ home = ReplyKeyboardMarkup(
     [[btn_new], [btn_menu]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
-menu_spending_income = ReplyKeyboardMarkup(
-    [[btn_spending, btn_income], [btn_back]],
+menu_expenses_incomes = ReplyKeyboardMarkup(
+    [[btn_expenses, btn_incomes], [btn_back]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu = ReplyKeyboardMarkup(
-    [[btn_show_spending, btn_show_income], [btn_statistic], [btn_show_category], [btn_back]],
+    [[btn_show_expenses, btn_show_incomes], [btn_statistic], [btn_show_category], [btn_back]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
-menu_show_spending = ReplyKeyboardMarkup(
+menu_show_expenses = ReplyKeyboardMarkup(
     [[btn_previous_month, btn_forward], [btn_remove, btn_back, btn_add]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
-menu_show_income = ReplyKeyboardMarkup(
+menu_show_incomes = ReplyKeyboardMarkup(
     [[btn_previous_month, btn_forward], [btn_remove, btn_back, btn_add]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
@@ -70,8 +70,8 @@ menu_btn_back = ReplyKeyboardMarkup(
     [[btn_back]],
     resize_keyboard=True, is_persistent=True
 )
-menu_income_spending = ReplyKeyboardMarkup(
-    [[btn_income, btn_spending], [btn_back]],
+menu_incomes_expenses = ReplyKeyboardMarkup(
+    [[btn_incomes, btn_expenses], [btn_back]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_new_category = ReplyKeyboardMarkup(
