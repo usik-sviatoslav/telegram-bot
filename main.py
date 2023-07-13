@@ -20,6 +20,9 @@ async def start(update: Update, context: CallbackContext) -> None:
 
     reply_text = update.message.reply_text
     user_id = str(update.effective_chat.id)
+    username = update.message.from_user.username
+    first_name = update.message.from_user.first_name
+    last_name = update.message.from_user.last_name
 
     await delete_message_from_user(update)
 
@@ -47,6 +50,9 @@ async def start(update: Update, context: CallbackContext) -> None:
                 json.dump(data_base, file, indent=4)
 
         data_base[user_id] = {
+            "username": f"@{username}",
+            "first_name": first_name,
+            "last_name": last_name,
             "bot_message_info": [message_1.message_id, message_2.message_id],
             "bot_message": [],
             "chat_states": [],
@@ -92,7 +98,7 @@ async def home(update: Update, context: CallbackContext) -> None:
         for _ in reversed(chat_states):
             chat_states.pop()
 
-        for _ in selected_category:
+        for _ in reversed(selected_category):
             selected_category.pop()
 
     except Exception as exception:
@@ -129,7 +135,6 @@ async def delete_message_from_bot(update: Update, context: CallbackContext) -> N
                 bot_message_info.pop(0)
             else:
                 await delete_message(user_id, message_id)
-                context.bot_data["bot_message_info"] = [bot_message_info[-1]]
                 bot_message_info.pop(0)
                 logging.info("❌ Message from bot  deleted ❌")
 
@@ -138,7 +143,6 @@ async def delete_message_from_bot(update: Update, context: CallbackContext) -> N
                 bot_message.pop(0)
             else:
                 await delete_message(user_id, bot_message_id)
-                context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message.pop(0)
                 logging.info("❌ Message from bot  deleted ❌")
 
@@ -165,9 +169,7 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
 
     try:
         state = chat_states[-1]
-        if state == "Меню" \
-                or state == "Додати новий запис" \
-                or state == "Обрано категорію":
+        if state == "Меню" or state == "Додати новий запис" or state == "Обрано категорію":
             for _ in reversed(chat_states):
                 chat_states.pop()
 
@@ -178,20 +180,20 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
             with open("bot_data.json", "r+") as file:
                 data_base = json.load(file)
 
-        elif state == "Переглянути доходи" \
-                or state == "Переглянути витрати" \
-                or state == "Статистика" \
-                or state == "Переглянути категорії":
+        elif state == "Переглянути доходи" or state == "Переглянути витрати" or state == "Статистика" \
+                or state == "Переглянути категорії" or state == "Доходи детально" or state == "Витрати детально":
+            if state == "Доходи детально" or state == "Витрати детально":
+                chat_states.pop()
+
             chat_states.pop()
             m = await reply_text("Оберіть параметр", reply_markup=nav.menu)
             bot_message_info.append(m.message_id)
+
             if len(bot_message) != 0:
                 await delete_message(user_id, bot_message[0])
-                context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message.pop(0)
 
-        elif state == "Додати категорію" \
-                or state == "Видалити категорію":
+        elif state == "Додати категорію" or state == "Видалити категорію":
             chat_states.pop()
             m = await reply_text("Оберіть параметр", reply_markup=nav.menu_show_category)
             bot_message_info.append(m.message_id)
@@ -214,7 +216,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     send_message = context.bot.send_message
     delete_message = context.bot.delete_message
     user_id = str(update.effective_chat.id)
-    current_date = str(datetime.datetime.now().date())
+    current_date = str(datetime.datetime.now().date().strftime("%d.%m.%Y"))
 
     bot_message_info = data_base[user_id]["bot_message_info"]
     bot_message = data_base[user_id]["bot_message"]
@@ -222,6 +224,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     selected_category = data_base[user_id]["selected_category"]
     category = data_base[user_id]['category']
     category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(category)])
+    income_category_list = "\n".join([f"{i + 1}. {line} (сума доходів для категорії)" for i, line in enumerate(category)])
+    expense_category_list = "\n".join([f"{i + 1}. {line} (сума витрат для категорії)" for i, line in enumerate(category)])
 
     await delete_message_from_user(update)
 
@@ -240,7 +244,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 logging.info(f'Button "{message}" was triggered')
                 chat_states.append(message)
 
-                m = await reply_text(f"Оберіть категорію:\n\n{category_list}", reply_markup=nav.btn_back)
+                m = await send_message(user_id, f"Оберіть категорію:\n\n{category_list}")
                 bot_message_info.append(m.message_id)
 
         elif message == "Меню":
@@ -305,10 +309,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
         if message.isdigit():
             if chat_states[-1] == "+":
                 try:
-                    category[selected_category[0]][current_date]["incomes"].extend([int(message)])
+                    category[selected_category[-1]][current_date]["incomes"].extend([int(message)])
                 except KeyError:
-                    category[selected_category[0]].update({current_date: {"incomes": [], "expenses": []}})
-                    category[selected_category[0]][current_date]["incomes"].extend([int(message)])
+                    category[selected_category[-1]].update({current_date: {"incomes": [], "expenses": []}})
+                    category[selected_category[-1]][current_date]["incomes"].extend([int(message)])
                 selected_category.pop()
 
                 m = await send_message(user_id, f"До категорії додано {message} грн.")
@@ -316,10 +320,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             elif chat_states[-1] == "-":
                 try:
-                    category[selected_category[0]][current_date]["expenses"].extend([int(message)])
+                    category[selected_category[-1]][current_date]["expenses"].extend([int(message)])
                 except KeyError:
-                    category[selected_category[0]].update({current_date: {"incomes": [], "expenses": []}})
-                    category[selected_category[0]][current_date]["expenses"].extend([int(message)])
+                    category[selected_category[-1]].update({current_date: {"incomes": [], "expenses": []}})
+                    category[selected_category[-1]][current_date]["expenses"].extend([int(message)])
                 selected_category.pop()
 
                 m = await send_message(user_id, f"До категорії додано -{message} грн.")
@@ -327,7 +331,6 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             chat_states.append("До категорії додано")
             await delete_message(user_id, bot_message_info[0])
-            context.bot_data["bot_message_info"] = [bot_message_info[-1]]
             bot_message_info.pop(0)
             time.sleep(2)
 
@@ -336,21 +339,19 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             bot_message_info.append(m.message_id)
 
     elif chat_states[-1] == "Меню":
-        if message == "Переглянути доходи":
+        if message == "Переглянути доходи" or message == "Переглянути витрати":
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
 
-            m = await reply_text("Тут будуть доходи", reply_markup=nav.menu_show_incomes)
-            bot_message.append(m.message_id)
-            bot_message_info.append(0)
+            if message == "Переглянути доходи":
+                m = await send_message(user_id, income_category_list)
+                bot_message.append(m.message_id)
+            elif message == "Переглянути витрати":
+                m = await send_message(user_id, expense_category_list)
+                bot_message.append(m.message_id)
 
-        elif message == "Переглянути витрати":
-            logging.info(f'Button "{message}" was triggered')
-            chat_states.append(message)
-
-            m = await reply_text("Тут будуть витрати", reply_markup=nav.menu_show_expenses)
-            bot_message.append(m.message_id)
-            bot_message_info.append(0)
+            m = await reply_text("Введіть назву категорії для детальної інформації", reply_markup=nav.menu_btn_back)
+            bot_message_info.append(m.message_id)
 
         elif message == "Статистика":
             logging.info(f'Button "{message}" was triggered')
@@ -378,6 +379,41 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 data_base = json.load(file)
 
     elif chat_states[-1] == "Переглянути доходи" or chat_states[-1] == "Переглянути витрати":
+        if message in category:
+            selected_category.append(message)
+            if chat_states[-1] == "Переглянути доходи":
+                chat_states.append("Доходи детально")
+
+                m = await reply_text(
+                    f'Доходи у категорії "{selected_category[-1]}"\n'
+                    f'Липень 2023 (сума доходів для категорії)\n\n'
+                    f'Детальний список доходів...',
+                    reply_markup=nav.menu_show_incomes
+                )
+                bot_message.append(m.message_id)
+
+            elif chat_states[-1] == "Переглянути витрати":
+                chat_states.append("Витрати детально")
+
+                m = await reply_text(
+                    f'Витрати у категорії "{selected_category[-1]}"\n'
+                    f'Липень 2023 (сума витрат для категорії)\n\n'
+                    f'Детальний список витрат...',
+                    reply_markup=nav.menu_show_expenses
+                )
+                bot_message.append(m.message_id)
+            bot_message_info.append(0)
+
+        elif message == "Назад":
+            await back_to_previous(update, context)
+            with open("bot_data.json", "r+") as file:
+                data_base = json.load(file)
+
+        else:
+            m = await reply_text(f'Категорії "{message}" немає. Введіть існуючу', reply_markup=nav.menu_btn_back)
+            bot_message_info.append(m.message_id)
+
+    elif chat_states[-1] == "Доходи детально" or chat_states[-1] == "Витрати детально":
         # General functions
         if message == "Попередній місяць":
             logging.info(f'Button "{message}" was triggered')
@@ -387,13 +423,13 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             logging.info(f'Button "{message}" was triggered')
             # chat_states.append(message)
 
-        elif message == "Назад":
+        elif message == "Меню":
             await back_to_previous(update, context)
             with open("bot_data.json", "r+") as file:
                 data_base = json.load(file)
 
         # Individual functions
-        if chat_states[-1] == "Переглянути доходи":
+        if chat_states[-1] == "Доходи детально":
             if message == "Видалити":
                 logging.info(f'Button "{message}" was triggered')
                 # chat_states.append(message)
@@ -402,7 +438,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 logging.info(f'Button "{message}" was triggered')
                 # chat_states.append(message)
 
-        elif chat_states[-1] == "Переглянути витрати":
+        elif chat_states[-1] == "Витрати детально":
             if message == "Видалити":
                 logging.info(f'Button "{message}" was triggered')
                 # chat_states.append(message)
@@ -493,22 +529,18 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             # Deleting and delaying messages to be deleted
             if len(bot_message) == 2:
                 await delete_message(user_id, bot_message[0])
-                context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message.pop(0)
 
             if len(bot_message_info) == 2:
                 await delete_message(user_id, bot_message_info[0])
-                context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message_info.pop(0)
 
             if len(category) != 0:
                 time.sleep(2)
                 await delete_message(user_id, bot_message_info[0])
-                context.bot_data["bot_message"] = [bot_message_info[-1]]
                 bot_message_info.pop(0)
             else:
                 await delete_message(user_id, bot_message[0])
-                context.bot_data["bot_message"] = [bot_message[-1]]
                 bot_message.pop(0)
 
         else:

@@ -51,11 +51,11 @@ menu = ReplyKeyboardMarkup(
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_expenses = ReplyKeyboardMarkup(
-    [[btn_previous_month, btn_forward], [btn_remove, btn_back, btn_add]],
+    [[btn_previous_month, btn_forward], [btn_remove, btn_menu, btn_add]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_incomes = ReplyKeyboardMarkup(
-    [[btn_previous_month, btn_forward], [btn_remove, btn_back, btn_add]],
+    [[btn_previous_month, btn_forward], [btn_remove, btn_menu, btn_add]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_statistic = ReplyKeyboardMarkup(
