@@ -57,7 +57,7 @@ async def start(update: Update, context: CallbackContext) -> None:
             "bot_message": [],
             "chat_states": [],
             "selected_category": [],
-            "category": {}
+            "categories": {}
         }
 
     with open("bot_data.json", "w") as file:
@@ -222,17 +222,43 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     bot_message = data_base[user_id]["bot_message"]
     chat_states = data_base[user_id]["chat_states"]
     selected_category = data_base[user_id]["selected_category"]
-    category = data_base[user_id]['category']
-    category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(category)])
-    income_category_list = "\n".join([f"{i + 1}. {line} (сума доходів для категорії)" for i, line in enumerate(category)])
-    expense_category_list = "\n".join([f"{i + 1}. {line} (сума витрат для категорії)" for i, line in enumerate(category)])
+    categories = data_base[user_id]['categories']
+
+    # Отримуємо значення доходів/витрат до словника
+    incomes_dict = {}
+    expenses_dict = {}
+    for category, dates in categories.items():
+        incomes_list = []
+        expenses_list = []
+        for date, expenses_data in dates.items():
+            incomes = expenses_data.get("incomes", [])
+            expenses = expenses_data.get("expenses", [])
+            incomes_list.extend(incomes)
+            expenses_list.extend(expenses)
+        incomes_dict[category] = sum(incomes_list)
+        expenses_dict[category] = sum(expenses_list)
+
+    # Форматуємо словник доходів/витрат
+    formatted_incomes = []
+    formatted_expenses = []
+    for category, amount in incomes_dict.items():
+        formatted_income = f"{category} ({amount} грн)"
+        formatted_incomes.append(formatted_income)
+    for category, amount in expenses_dict.items():
+        formatted_expense = f"{category} (-{amount} грн)"
+        formatted_expenses.append(formatted_expense)
+
+    # Виводимо списком отримані словники
+    category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
+    income_categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_incomes)])
+    expense_categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_expenses)])
 
     await delete_message_from_user(update)
 
     # Checking messages from the user 229-522
     if len(chat_states) == 0:
         if message == "Додати новий запис":
-            if len(category) == 0:
+            if len(categories) == 0:
                 chat_states.append("Додати категорію")
                 m = await reply_text(
                     "Спочатку треба додати категорію!\n"
@@ -260,7 +286,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 data_base = json.load(file)
 
     elif chat_states[-1] == "Додати новий запис":
-        if message in category:
+        if message in categories:
             logging.info(f'Category "{message}" was selected')
             chat_states.append("Обрано категорію")
 
@@ -309,10 +335,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
         if message.isdigit():
             if chat_states[-1] == "+":
                 try:
-                    category[selected_category[-1]][current_date]["incomes"].extend([int(message)])
+                    categories[selected_category[-1]][current_date]["incomes"].extend([int(message)])
                 except KeyError:
-                    category[selected_category[-1]].update({current_date: {"incomes": [], "expenses": []}})
-                    category[selected_category[-1]][current_date]["incomes"].extend([int(message)])
+                    categories[selected_category[-1]].update({current_date: {"incomes": [], "expenses": []}})
+                    categories[selected_category[-1]][current_date]["incomes"].extend([int(message)])
                 selected_category.pop()
 
                 m = await send_message(user_id, f"До категорії додано {message} грн.")
@@ -320,10 +346,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             elif chat_states[-1] == "-":
                 try:
-                    category[selected_category[-1]][current_date]["expenses"].extend([int(message)])
+                    categories[selected_category[-1]][current_date]["expenses"].extend([int(message)])
                 except KeyError:
-                    category[selected_category[-1]].update({current_date: {"incomes": [], "expenses": []}})
-                    category[selected_category[-1]][current_date]["expenses"].extend([int(message)])
+                    categories[selected_category[-1]].update({current_date: {"incomes": [], "expenses": []}})
+                    categories[selected_category[-1]][current_date]["expenses"].extend([int(message)])
                 selected_category.pop()
 
                 m = await send_message(user_id, f"До категорії додано -{message} грн.")
@@ -344,10 +370,11 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             chat_states.append(message)
 
             if message == "Переглянути доходи":
-                m = await send_message(user_id, income_category_list)
+                m = await send_message(user_id, income_categories_list)
                 bot_message.append(m.message_id)
+
             elif message == "Переглянути витрати":
-                m = await send_message(user_id, expense_category_list)
+                m = await send_message(user_id, expense_categories_list)
                 bot_message.append(m.message_id)
 
             m = await reply_text("Введіть назву категорії для детальної інформації", reply_markup=nav.menu_btn_back)
@@ -365,7 +392,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
 
-            if len(category) == 0:
+            if len(categories) == 0:
                 m = await reply_text("Поки немає жодної категорії", reply_markup=nav.menu_show_category)
                 bot_message_info.append(m.message_id)
             else:
@@ -379,7 +406,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 data_base = json.load(file)
 
     elif chat_states[-1] == "Переглянути доходи" or chat_states[-1] == "Переглянути витрати":
-        if message in category:
+        if message in categories:
             selected_category.append(message)
             if chat_states[-1] == "Переглянути доходи":
                 chat_states.append("Доходи детально")
@@ -474,7 +501,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             bot_message_info.append(m.message_id)
 
         elif message == "Видалити категорію":
-            if len(category) == 0:
+            if len(categories) == 0:
                 logging.info(f'Button "{message}" was triggered')
 
                 m = await reply_text("Немає жодної категорії для видалення!", reply_markup=nav.menu_show_category)
@@ -499,11 +526,11 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
         if not message == "Назад":
             # Update bot_data.json for incomes & expense in selected category
             if chat_states[-1] == "Додати категорію":
-                category = data_base[user_id]['category']
-                category.update({message: {}})
+                categories = data_base[user_id]['categories']
+                categories.update({message: {}})
 
             elif chat_states[-1] == "Видалити категорію":
-                del_category = data_base[user_id]['category']
+                del_category = data_base[user_id]['categories']
                 del_category.pop(message)
 
             # Notifications about creating or deleting a category
@@ -512,7 +539,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 bot_message_info.append(m.message_id)
 
             elif chat_states[-1] == "Видалити категорію":
-                if len(category) == 0:
+                if len(categories) == 0:
                     chat_states.pop()
                     m = await reply_text("Усі категорії видалено!", reply_markup=nav.menu_show_category)
                     bot_message_info.append(m.message_id)
@@ -520,9 +547,9 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                     m = await send_message(user_id, f'Видалено категорію "{message}"')
                     bot_message_info.append(m.message_id)
 
-            # Print updated category list
-            if len(category) != 0:
-                category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(category)])
+            # Print updated categories list
+            if len(categories) != 0:
+                category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
                 m = await reply_text(category_list, reply_markup=nav.menu_btn_back)
                 bot_message.append(m.message_id)
 
@@ -535,7 +562,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 await delete_message(user_id, bot_message_info[0])
                 bot_message_info.pop(0)
 
-            if len(category) != 0:
+            if len(categories) != 0:
                 time.sleep(2)
                 await delete_message(user_id, bot_message_info[0])
                 bot_message_info.pop(0)
