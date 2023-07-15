@@ -224,7 +224,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     selected_category = data_base[user_id]["selected_category"]
     categories = data_base[user_id]['categories']
 
-    # Отримуємо значення доходів/витрат до словника
+    # Get income/expense values to the dictionary
     incomes_dict = {}
     expenses_dict = {}
     for category, dates in categories.items():
@@ -238,24 +238,26 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
         incomes_dict[category] = sum(incomes_list)
         expenses_dict[category] = sum(expenses_list)
 
-    # Форматуємо словник доходів/витрат
+    # Format the income/expense dictionary
     formatted_incomes = []
     formatted_expenses = []
     for category, amount in incomes_dict.items():
-        formatted_income = f"{category} ({amount} грн)"
-        formatted_incomes.append(formatted_income)
+        if amount != 0:
+            formatted_income = f"{category} ({amount} грн.)"
+            formatted_incomes.append(formatted_income)
     for category, amount in expenses_dict.items():
-        formatted_expense = f"{category} (-{amount} грн)"
-        formatted_expenses.append(formatted_expense)
+        if amount != 0:
+            formatted_expense = f"{category} ({amount} грн.)"
+            formatted_expenses.append(formatted_expense)
 
-    # Виводимо списком отримані словники
+    # Print the received dictionaries in a list
     category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
     income_categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_incomes)])
     expense_categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_expenses)])
 
     await delete_message_from_user(update)
 
-    # Checking messages from the user 229-522
+    # Checking messages from the user 261-602
     if len(chat_states) == 0:
         if message == "Додати новий запис":
             if len(categories) == 0:
@@ -346,10 +348,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             elif chat_states[-1] == "-":
                 try:
-                    categories[selected_category[-1]][current_date]["expenses"].extend([int(message)])
+                    categories[selected_category[-1]][current_date]["expenses"].extend([-1 * (int(message))])
                 except KeyError:
                     categories[selected_category[-1]].update({current_date: {"incomes": [], "expenses": []}})
-                    categories[selected_category[-1]][current_date]["expenses"].extend([int(message)])
+                    categories[selected_category[-1]][current_date]["expenses"].extend([-1 * (int(message))])
                 selected_category.pop()
 
                 m = await send_message(user_id, f"До категорії додано -{message} грн.")
@@ -367,18 +369,32 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     elif chat_states[-1] == "Меню":
         if message == "Переглянути доходи" or message == "Переглянути витрати":
             logging.info(f'Button "{message}" was triggered')
-            chat_states.append(message)
 
             if message == "Переглянути доходи":
-                m = await send_message(user_id, income_categories_list)
-                bot_message.append(m.message_id)
+                if len(categories) == 0 or sum(incomes_dict.values()) == 0:
+                    m = await reply_text("Поки немає жодного доходу", reply_markup=nav.menu)
+                    bot_message_info.append(m.message_id)
+                else:
+                    chat_states.append(message)
+                    m = await send_message(user_id, income_categories_list)
+                    bot_message.append(m.message_id)
+                    m = await reply_text(
+                        "Введіть назву категорії для детальної інформації", reply_markup=nav.menu_btn_back
+                    )
+                    bot_message_info.append(m.message_id)
 
             elif message == "Переглянути витрати":
-                m = await send_message(user_id, expense_categories_list)
-                bot_message.append(m.message_id)
-
-            m = await reply_text("Введіть назву категорії для детальної інформації", reply_markup=nav.menu_btn_back)
-            bot_message_info.append(m.message_id)
+                if len(categories) == 0 or sum(expenses_dict.values()) == 0:
+                    m = await reply_text("Поки немає жодних витрат", reply_markup=nav.menu)
+                    bot_message_info.append(m.message_id)
+                else:
+                    chat_states.append(message)
+                    m = await send_message(user_id, expense_categories_list)
+                    bot_message.append(m.message_id)
+                    m = await reply_text(
+                        "Введіть назву категорії для детальної інформації", reply_markup=nav.menu_btn_back
+                    )
+                    bot_message_info.append(m.message_id)
 
         elif message == "Статистика":
             logging.info(f'Button "{message}" was triggered')
@@ -411,9 +427,11 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             if chat_states[-1] == "Переглянути доходи":
                 chat_states.append("Доходи детально")
 
+                income_for_category = [incomes_dict[key] for key in selected_category if key in incomes_dict]
+
                 m = await reply_text(
                     f'Доходи у категорії "{selected_category[-1]}"\n'
-                    f'Липень 2023 (сума доходів для категорії)\n\n'
+                    f'за липень 2023 ({income_for_category[0]} грн.)\n\n'
                     f'Детальний список доходів...',
                     reply_markup=nav.menu_show_incomes
                 )
@@ -422,14 +440,17 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             elif chat_states[-1] == "Переглянути витрати":
                 chat_states.append("Витрати детально")
 
+                expense_for_category = [expenses_dict[key] for key in selected_category if key in expenses_dict]
+
                 m = await reply_text(
                     f'Витрати у категорії "{selected_category[-1]}"\n'
-                    f'Липень 2023 (сума витрат для категорії)\n\n'
+                    f'за липень 2023 ({expense_for_category[0]} грн.)\n\n'
                     f'Детальний список витрат...',
                     reply_markup=nav.menu_show_expenses
                 )
                 bot_message.append(m.message_id)
             bot_message_info.append(0)
+            selected_category.pop()
 
         elif message == "Назад":
             await back_to_previous(update, context)
