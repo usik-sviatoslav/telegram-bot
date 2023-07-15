@@ -12,10 +12,10 @@ from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, Me
 # Function
 # ----------------------------------------------------------------------------------------------------------------------
 
-async def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update) -> None:
     logging.info('Command "/start" was triggered.')
 
-    with open("bot_data.json", "r+") as file:
+    with open("bot_data.json", "r") as file:
         data_base = json.load(file)
 
     reply_text = update.message.reply_text
@@ -67,7 +67,7 @@ async def start(update: Update, context: CallbackContext) -> None:
 async def home(update: Update, context: CallbackContext) -> None:
     logging.info('Command "/home" was triggered.')
 
-    with open("bot_data.json", "r+") as file:
+    with open("bot_data.json", "r") as file:
         data_base = json.load(file)
 
     user_id = str(update.effective_chat.id)
@@ -120,7 +120,7 @@ async def delete_message_from_user(update: Update) -> None:
 
 async def delete_message_from_bot(update: Update, context: CallbackContext) -> None:
 
-    with open("bot_data.json", "r+") as file:
+    with open("bot_data.json", "r") as file:
         data_base = json.load(file)
 
     user_id = str(update.effective_chat.id)
@@ -156,7 +156,7 @@ async def delete_message_from_bot(update: Update, context: CallbackContext) -> N
 async def back_to_previous(update: Update, context: CallbackContext) -> None:
     logging.info(f'Button "Назад" was triggered')
 
-    with open("bot_data.json", "r+") as file:
+    with open("bot_data.json", "r") as file:
         data_base = json.load(file)
 
     user_id = str(update.effective_chat.id)
@@ -177,7 +177,7 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
                 json.dump(data_base, file, indent=4)
 
             await home(update, context)
-            with open("bot_data.json", "r+") as file:
+            with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
         elif state == "Переглянути доходи" or state == "Переглянути витрати" or state == "Статистика" \
@@ -208,7 +208,7 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
 
 async def message_handler(update: Update, context: CallbackContext) -> None:
 
-    with open("bot_data.json", "r+") as file:
+    with open("bot_data.json", "r") as file:
         data_base = json.load(file)
 
     message = update.message.text
@@ -285,7 +285,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r+") as file:
+            with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
     elif chat_states[-1] == "Додати новий запис":
@@ -306,7 +306,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Перейти на головну сторінку":
             await home(update, context)
-            with open("bot_data.json", "r+") as file:
+            with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
         elif message.isnumeric():
@@ -322,8 +322,13 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             else:
                 logging.info('list out of range')
-                m = await send_message(user_id, 'Немає такого значення у списку!')
+                m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
                 bot_message_info.append(m.message_id)
+
+        elif message == "Назад":
+            await back_to_previous(update, context)
+            with open("bot_data.json", "r") as file:
+                data_base = json.load(file)
 
         else:
             logging.info(f'No category "{message}"')
@@ -347,7 +352,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r+") as file:
+            with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
     elif chat_states[-1] == "+" or chat_states[-1] == "-":
@@ -437,7 +442,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r+") as file:
+            with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
     elif chat_states[-1] == "Переглянути доходи" or chat_states[-1] == "Переглянути витрати":
@@ -485,7 +490,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                             selected_category.append(formatted_incomes[int(message) - 1].split(' ')[0])
                             await income_detail()
                         else:
-                            m = await send_message(user_id, 'Немає такого значення у списку!')
+                            m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
                             bot_message_info.append(m.message_id)
 
                     elif chat_states[-1] == "Переглянути витрати":
@@ -493,15 +498,15 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                             selected_category.append(formatted_expenses[int(message) - 1].split(' ')[0])
                             await expense_detail()
                         else:
-                            m = await send_message(user_id, 'Немає такого значення у списку!')
+                            m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
                             bot_message_info.append(m.message_id)
                 else:
-                    m = await send_message(user_id, 'Немає такого значення у списку!')
+                    m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
                     bot_message_info.append(m.message_id)
 
         elif message == "Назад":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r+") as file:
+            with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
         else:
@@ -509,7 +514,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 m = await reply_text(f'Категорії "{message}" немає. Введіть існуючу', reply_markup=nav.menu_btn_back)
                 bot_message_info.append(m.message_id)
             else:
-                m = await send_message(user_id, 'Немає такого значення у списку!')
+                m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
                 bot_message_info.append(m.message_id)
 
     elif chat_states[-1] == "Доходи детально" or chat_states[-1] == "Витрати детально":
@@ -524,7 +529,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Меню":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r+") as file:
+            with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
         # Individual functions
@@ -561,7 +566,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r+") as file:
+            with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
     elif chat_states[-1] == "Переглянути категорії":
@@ -584,46 +589,38 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 chat_states.append(message)
 
                 m = await reply_text(
-                    "Введіть назву або № категорії яку треба видалити.\n\n"
+                    "Введіть назву або № категорії яку треба видалити.\n\n""⚠️ Зверніть увагу ⚠️\n"
                     "Усі дані категорії видаляться!", reply_markup=nav.menu_btn_back
                 )
                 bot_message_info.append(m.message_id)
 
         elif message == "Назад":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r+") as file:
+            with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
     elif chat_states[-1] == "Додати категорію" or chat_states[-1] == "Видалити категорію":
-        if not message == "Назад":
-            # Update bot_data.json for incomes & expense in selected category
-            if chat_states[-1] == "Додати категорію":
-                categories = data_base[user_id]['categories']
-                categories.update({message: {}})
-
-            elif chat_states[-1] == "Видалити категорію":
-                del_category = data_base[user_id]['categories']
-                del_category.pop(message)
-
+        async def category_actions():
             # Notifications about creating or deleting a category
             if chat_states[-1] == "Додати категорію":
-                m = await send_message(user_id, f'Додано нову категорію "{message}"')
-                bot_message_info.append(m.message_id)
+                add_category_m = await send_message(user_id, f'Додано нову категорію "{message}"')
+                bot_message_info.append(add_category_m.message_id)
 
             elif chat_states[-1] == "Видалити категорію":
                 if len(categories) == 0:
                     chat_states.pop()
-                    m = await reply_text("Усі категорії видалено!", reply_markup=nav.menu_show_category)
-                    bot_message_info.append(m.message_id)
-                else:
-                    m = await send_message(user_id, f'Видалено категорію "{message}"')
-                    bot_message_info.append(m.message_id)
+                    del_all_m = await reply_text("Усі категорії видалено!", reply_markup=nav.menu_show_category)
+                    bot_message_info.append(del_all_m.message_id)
+                elif len(selected_category) != 0:
+                    del_category_m = await send_message(user_id, f'Видалено категорію "{selected_category[-1]}"')
+                    selected_category.pop()
+                    bot_message_info.append(del_category_m.message_id)
 
             # Print updated categories list
             if len(categories) != 0:
-                category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
-                m = await reply_text(category_list, reply_markup=nav.menu_btn_back)
-                bot_message.append(m.message_id)
+                new_category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
+                new_list_m = await reply_text(new_category_list, reply_markup=nav.menu_btn_back)
+                bot_message.append(new_list_m.message_id)
 
             # Deleting and delaying messages to be deleted
             if len(bot_message) == 2:
@@ -642,14 +639,33 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 await delete_message(user_id, bot_message[0])
                 bot_message.pop(0)
 
+        if not message == "Назад":
+            # Update bot_data.json for incomes & expense in selected category
+            if chat_states[-1] == "Додати категорію":
+                categories.update({message: {}})
+                await category_actions()
+
+            elif chat_states[-1] == "Видалити категорію":
+                if message.isalpha():
+                    categories.pop(message)
+                elif message.isnumeric():
+                    if int(message) <= len(categories) and int(message) != 0:
+                        selected_category.append(list(categories.keys())[int(message) - 1])
+                        categories.pop(selected_category[-1])
+                        await category_actions()
+                    else:
+                        logging.info('list out of range')
+                        m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
+                        bot_message_info.append(m.message_id)
+
         else:
             if len(chat_states) <= 2:
                 await home(update, context)
-                with open("bot_data.json", "r+") as file:
+                with open("bot_data.json", "r") as file:
                     data_base = json.load(file)
             else:
                 await back_to_previous(update, context)
-                with open("bot_data.json", "r+") as file:
+                with open("bot_data.json", "r") as file:
                     data_base = json.load(file)
 
     with open("bot_data.json", "w") as file:
