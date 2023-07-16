@@ -227,28 +227,40 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     # Get income/expense values to the dictionary
     incomes_dict = {}
     expenses_dict = {}
+    categories_date_incomes_dict = {}
+    categories_date_expenses_dict = {}
+
     for category, dates in categories.items():
         incomes_list = []
         expenses_list = []
+        date_incomes_dict = {}
+        date_expenses_dict = {}
+
         for date, expenses_data in dates.items():
             incomes = expenses_data.get("incomes", [])
             expenses = expenses_data.get("expenses", [])
-            incomes_list.extend(incomes)
-            expenses_list.extend(expenses)
-        incomes_dict[category] = sum(incomes_list)
-        expenses_dict[category] = sum(expenses_list)
+
+            if len(incomes) != 0:
+                incomes_list.extend(incomes)
+                date_incomes_dict[date] = incomes
+            if len(expenses) != 0:
+                expenses_list.extend(expenses)
+                date_expenses_dict[date] = expenses
+
+        if len(incomes_list) != 0:
+            incomes_dict[category] = sum(incomes_list)
+            categories_date_incomes_dict[category] = date_incomes_dict
+        if len(expenses_list) != 0:
+            expenses_dict[category] = sum(expenses_list)
+            categories_date_expenses_dict[category] = date_expenses_dict
 
     # Format the income/expense dictionary
     formatted_incomes = []
     formatted_expenses = []
     for category, amount in incomes_dict.items():
-        if amount != 0:
-            formatted_income = f"{category} ({amount} грн.)"
-            formatted_incomes.append(formatted_income)
+        formatted_incomes.append(f"{category} ({amount} грн.)")
     for category, amount in expenses_dict.items():
-        if amount != 0:
-            formatted_expense = f"{category} ({amount} грн.)"
-            formatted_expenses.append(formatted_expense)
+        formatted_expenses.append(f"{category} ({amount} грн.)")
 
     # Print the received dictionaries in a list
     category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
@@ -446,6 +458,24 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 data_base = json.load(file)
 
     elif chat_states[-1] == "Переглянути доходи" or chat_states[-1] == "Переглянути витрати":
+        def detailed_list():
+            formatted = []
+
+            def format_values():
+                result = "\n".join([f"{i}. {line} грн." for i, line in enumerate(values, start=1)])
+                formatted.extend([f"{day[:-5]} ({sum(values)} грн.)\n{result}"])
+
+            if chat_states[-1] == "Доходи детально":
+                for day, values in categories_date_incomes_dict[selected_category[-1]].items():
+                    format_values()
+
+            elif chat_states[-1] == "Витрати детально":
+                for day, values in categories_date_expenses_dict[selected_category[-1]].items():
+                    format_values()
+
+            finally_formatted = "\n\n".join(formatted)
+            return finally_formatted
+
         async def income_detail():
             chat_states.append("Доходи детально")
 
@@ -454,7 +484,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             incomes_m = await reply_text(
                 f'Доходи у категорії "{selected_category[-1]}"\n'
                 f'за липень 2023 ({income_for_category[0]} грн.)\n\n'
-                f'Детальний список доходів...',
+                f'{detailed_list()}',
                 reply_markup=nav.menu_show_incomes
             )
             bot_message.append(incomes_m.message_id)
@@ -468,7 +498,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             expenses_m = await reply_text(
                 f'Витрати у категорії "{selected_category[-1]}"\n'
                 f'за липень 2023 ({expense_for_category[0]} грн.)\n\n'
-                f'Детальний список витрат...',
+                f'{detailed_list()}',
                 reply_markup=nav.menu_show_expenses
             )
             bot_message.append(expenses_m.message_id)
