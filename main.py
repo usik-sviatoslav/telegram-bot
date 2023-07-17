@@ -383,7 +383,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
-    elif chat_states[-1] == "+" or chat_states[-1] == "-":
+    elif chat_states[-1] in ["+", "-"]:
         if message.isdigit():
             def func():
                 if month_year not in list(categories[selected_category[-1]].keys()):
@@ -427,7 +427,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             bot_message_info.append(m.message_id)
 
     elif chat_states[-1] == "Меню":
-        if message == "Переглянути доходи" or message == "Переглянути витрати":
+        if message in ["Переглянути доходи", "Переглянути витрати"]:
             logging.info(f'Button "{message}" was triggered')
 
             if message == "Переглянути доходи":
@@ -483,7 +483,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
-    elif chat_states[-1] == "Переглянути доходи" or chat_states[-1] == "Переглянути витрати":
+    elif chat_states[-1] in ["Переглянути доходи", "Переглянути витрати"]:
         def detailed_list():
             formatted = []
 
@@ -574,7 +574,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
                 bot_message_info.append(m.message_id)
 
-    elif chat_states[-1] == "Доходи детально" or chat_states[-1] == "Витрати детально":
+    elif chat_states[-1] in ["Доходи детально", "Витрати детально"]:
         # General functions
         if message == "Попередній місяць":
             logging.info(f'Button "{message}" was triggered')
@@ -663,7 +663,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
-    elif chat_states[-1] == "Додати категорію" or chat_states[-1] == "Видалити категорію":
+    elif chat_states[-1] in ["Додати категорію", "Видалити категорію"]:
         async def category_actions():
             # Notifications about creating or deleting a category
             if chat_states[-1] == "Додати категорію":
