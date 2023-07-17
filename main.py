@@ -12,7 +12,7 @@ from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, Me
 # Function
 # ----------------------------------------------------------------------------------------------------------------------
 
-async def start(update: Update) -> None:
+async def start(update: Update, context: CallbackContext) -> None:
     logging.info('Command "/start" was triggered.')
 
     with open("bot_data.json", "r") as file:
@@ -56,6 +56,7 @@ async def start(update: Update) -> None:
             "bot_message_info": [message_1.message_id, message_2.message_id],
             "bot_message": [],
             "chat_states": [],
+            "selected_date": [],
             "selected_category": [],
             "categories": {}
         }
@@ -169,7 +170,8 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
 
     try:
         state = chat_states[-1]
-        if state == "Меню" or state == "Додати новий запис" or state == "Обрано категорію":
+        if state == "Меню" or state == "Додати новий запис" \
+                or state == "Обрано категорію" or state == "-" or state == "+":
             for _ in reversed(chat_states):
                 chat_states.pop()
 
@@ -216,11 +218,13 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     send_message = context.bot.send_message
     delete_message = context.bot.delete_message
     user_id = str(update.effective_chat.id)
-    current_date = str(datetime.datetime.now().date().strftime("%d.%m.%Y"))
+    month_year = str(datetime.datetime.now().date().strftime("%m.%Y"))
+    day_month = str(datetime.datetime.now().date().strftime("%d.%m"))
 
     bot_message_info = data_base[user_id]["bot_message_info"]
     bot_message = data_base[user_id]["bot_message"]
     chat_states = data_base[user_id]["chat_states"]
+    selected_date = data_base[user_id]["selected_date"]
     selected_category = data_base[user_id]["selected_category"]
     categories = data_base[user_id]['categories']
 
@@ -233,26 +237,35 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     for category, dates in categories.items():
         incomes_list = []
         expenses_list = []
-        date_incomes_dict = {}
-        date_expenses_dict = {}
+        month_incomes_dict = {}
+        month_expenses_dict = {}
 
-        for date, expenses_data in dates.items():
-            incomes = expenses_data.get("incomes", [])
-            expenses = expenses_data.get("expenses", [])
+        for month, day in dates.items():
+            day_incomes_dict = {}
+            day_expenses_dict = {}
 
-            if len(incomes) != 0:
-                incomes_list.extend(incomes)
-                date_incomes_dict[date] = incomes
-            if len(expenses) != 0:
-                expenses_list.extend(expenses)
-                date_expenses_dict[date] = expenses
+            for date, expenses_data in day.items():
+                incomes = expenses_data.get("incomes", [])
+                expenses = expenses_data.get("expenses", [])
+
+                if len(incomes) != 0:
+                    incomes_list.extend(incomes)
+                    day_incomes_dict[date] = incomes
+                if len(expenses) != 0:
+                    expenses_list.extend(expenses)
+                    day_expenses_dict[date] = expenses
+
+            if len(incomes_list) != 0:
+                incomes_dict[category] = sum(incomes_list)
+                month_incomes_dict[month] = day_incomes_dict
+            if len(expenses_list) != 0:
+                expenses_dict[category] = sum(expenses_list)
+                month_expenses_dict[month] = day_expenses_dict
 
         if len(incomes_list) != 0:
-            incomes_dict[category] = sum(incomes_list)
-            categories_date_incomes_dict[category] = date_incomes_dict
+            categories_date_incomes_dict[category] = month_incomes_dict
         if len(expenses_list) != 0:
-            expenses_dict[category] = sum(expenses_list)
-            categories_date_expenses_dict[category] = date_expenses_dict
+            categories_date_expenses_dict[category] = month_expenses_dict
 
     # Format the income/expense dictionary
     formatted_incomes = []
@@ -353,13 +366,13 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
 
-            m = await send_message(user_id, "Введіть суму доходу")
+            m = await reply_text("Введіть суму доходу", reply_markup=nav.menu_btn_back)
             bot_message_info.append(m.message_id)
         elif message == "-":
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
 
-            m = await send_message(user_id, "Введіть суму витрат")
+            m = await reply_text("Введіть суму витрат", reply_markup=nav.menu_btn_back)
             bot_message_info.append(m.message_id)
 
         elif message == "Назад":
@@ -369,12 +382,18 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
     elif chat_states[-1] == "+" or chat_states[-1] == "-":
         if message.isdigit():
+            def func():
+                if month_year not in list(categories[selected_category[-1]].keys()):
+                    categories[selected_category[-1]].update({month_year: {day_month: {"incomes": [], "expenses": []}}})
+                else:
+                    categories[selected_category[-1]][month_year].update({day_month: {"incomes": [], "expenses": []}})
+
             if chat_states[-1] == "+":
                 try:
-                    categories[selected_category[-1]][current_date]["incomes"].extend([int(message)])
+                    categories[selected_category[-1]][month_year][day_month]["incomes"].extend([int(message)])
                 except KeyError:
-                    categories[selected_category[-1]].update({current_date: {"incomes": [], "expenses": []}})
-                    categories[selected_category[-1]][current_date]["incomes"].extend([int(message)])
+                    func()
+                    categories[selected_category[-1]][month_year][day_month]["incomes"].extend([int(message)])
                 selected_category.pop()
 
                 m = await send_message(user_id, f"До категорії додано {message} грн.")
@@ -382,10 +401,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             elif chat_states[-1] == "-":
                 try:
-                    categories[selected_category[-1]][current_date]["expenses"].extend([-1 * (int(message))])
+                    categories[selected_category[-1]][month_year][day_month]["expenses"].extend([-1 * (int(message))])
                 except KeyError:
-                    categories[selected_category[-1]].update({current_date: {"incomes": [], "expenses": []}})
-                    categories[selected_category[-1]][current_date]["expenses"].extend([-1 * (int(message))])
+                    func()
+                    categories[selected_category[-1]][month_year][day_month]["expenses"].extend([-1 * (int(message))])
                 selected_category.pop()
 
                 m = await send_message(user_id, f"До категорії додано -{message} грн.")
@@ -396,6 +415,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             bot_message_info.pop(0)
             time.sleep(2)
 
+        elif message == "Назад":
+            await back_to_previous(update, context)
+            with open("bot_data.json", "r") as file:
+                data_base = json.load(file)
         else:
             m = await send_message(user_id, f"Введіть число")
             bot_message_info.append(m.message_id)
@@ -463,14 +486,14 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             def format_values():
                 result = "\n".join([f"{i}. {line} грн." for i, line in enumerate(values, start=1)])
-                formatted.extend([f"{day[:-5]} ({sum(values)} грн.)\n{result}"])
+                formatted.extend([f"{day} ({sum(values)} грн.)\n{result}"])
 
             if chat_states[-1] == "Доходи детально":
-                for day, values in categories_date_incomes_dict[selected_category[-1]].items():
+                for day, values in categories_date_incomes_dict[selected_category[-1]][selected_date[-1]].items():
                     format_values()
 
             elif chat_states[-1] == "Витрати детально":
-                for day, values in categories_date_expenses_dict[selected_category[-1]].items():
+                for day, values in categories_date_expenses_dict[selected_category[-1]][selected_date[-1]].items():
                     format_values()
 
             finally_formatted = "\n\n".join(formatted)
@@ -505,6 +528,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             bot_message_info.append(0)
 
         if message in categories or message.isnumeric():
+            selected_date.append(month_year)
+
             if message.isalpha():
                 selected_category.append(message)
                 if chat_states[-1] == "Переглянути доходи":
