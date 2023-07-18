@@ -502,32 +502,43 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             finally_formatted = "\n\n".join(formatted)
             return finally_formatted
 
-        async def detail_transaction(reply_markup):
-            action = ""
-            trans_dict = {}
-            if chat_states[-1] == "Переглянути доходи":
-                chat_states.append("Доходи детально")
-                action = "Доходи"
-                trans_dict.update(date_incomes_dict[selected_category[-1]])
-            elif chat_states[-1] == "Переглянути витрати":
-                chat_states.append("Витрати детально")
-                action = "Витрати"
-                trans_dict.update(date_expenses_dict[selected_category[-1]])
+        async def detail_transaction(reply_markup, f_incomes_expenses):
+            if int(message) <= len(f_incomes_expenses):
+                selected_category.append(f_incomes_expenses[int(message) - 1].split(' ')[0])
+                trans_dict = {}
+                action = ""
 
-            for_selected_month = list(trans_dict[selected_date[-1]].values())
-            total_sum = sum(num for inner_list in for_selected_month for num in inner_list)
+                if chat_states[-1] == "Переглянути доходи":
+                    chat_states.append("Доходи детально")
+                    action = "Доходи"
+                    trans_dict.update(date_incomes_dict[selected_category[-1]])
 
-            trans = await reply_text(
-                f'{action} у категорії "{selected_category[-1]}"\n'
-                f'за {selected_date[-1]} ({total_sum} грн.)\n\n'
-                f'{detailed_list()}',
-                reply_markup=reply_markup
-            )
-            if chat_states[-1] == "Доходи детально":
-                bot_message.append(trans.message_id)
-            elif chat_states[-1] == "Витрати детально":
-                bot_message.append(trans.message_id)
-            bot_message_info.append(0)
+                elif chat_states[-1] == "Переглянути витрати":
+                    chat_states.append("Витрати детально")
+                    action = "Витрати"
+                    trans_dict.update(date_expenses_dict[selected_category[-1]])
+
+                for_selected_month = list(trans_dict[selected_date[-1]].values())
+                total_sum = sum(num for inner_list in for_selected_month for num in inner_list)
+
+                trans = await reply_text(
+                    f'{action} у категорії "{selected_category[-1]}"\n'
+                    f'за {selected_date[-1]} ({total_sum} грн.)\n\n'
+                    f'{detailed_list()}',
+                    reply_markup=reply_markup
+                )
+
+                if chat_states[-1] == "Доходи детально":
+                    bot_message.append(trans.message_id)
+
+                elif chat_states[-1] == "Витрати детально":
+                    bot_message.append(trans.message_id)
+
+                bot_message_info.append(0)
+
+            else:
+                trans = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
+                bot_message_info.append(trans.message_id)
 
         if message in categories or message.isnumeric():
             selected_date.append(month_year)
@@ -535,28 +546,18 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             if message.isalpha():
                 selected_category.append(message)
                 if chat_states[-1] == "Переглянути доходи":
-                    await detail_transaction(nav.menu_show_incomes)
+                    await detail_transaction(nav.menu_show_incomes, formatted_incomes)
 
                 elif chat_states[-1] == "Переглянути витрати":
-                    await detail_transaction(nav.menu_show_expenses)
+                    await detail_transaction(nav.menu_show_expenses, formatted_expenses)
 
             elif message.isnumeric():
                 if int(message) != 0:
                     if chat_states[-1] == "Переглянути доходи":
-                        if int(message) <= len(formatted_incomes):
-                            selected_category.append(formatted_incomes[int(message) - 1].split(' ')[0])
-                            await detail_transaction(nav.menu_show_incomes)
-                        else:
-                            m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
-                            bot_message_info.append(m.message_id)
+                        await detail_transaction(nav.menu_show_incomes, formatted_incomes)
 
                     elif chat_states[-1] == "Переглянути витрати":
-                        if int(message) <= len(formatted_expenses):
-                            selected_category.append(formatted_expenses[int(message) - 1].split(' ')[0])
-                            await detail_transaction(nav.menu_show_expenses)
-                        else:
-                            m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
-                            bot_message_info.append(m.message_id)
+                        await detail_transaction(nav.menu_show_expenses, formatted_expenses)
                 else:
                     m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
                     bot_message_info.append(m.message_id)
