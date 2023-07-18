@@ -212,7 +212,7 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
         json.dump(data_base, file, indent=4)
 
 
-def function(update: Update):
+def read_data(update: Update):
     with open("bot_data.json", "r") as file:
         data_base = json.load(file)
 
@@ -392,33 +392,28 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 data_base = json.load(file)
 
     elif chat_states[-1] in ["+", "-"]:
+        def update_category(sel_category, date_month_year, date_day_month, amount, state):
+            if date_month_year not in list(categories[sel_category].keys()):
+                categories[sel_category].update({date_month_year: {date_day_month: {"incomes": [], "expenses": []}}})
+            elif date_day_month not in list(categories[sel_category][date_month_year].keys()):
+                categories[sel_category][date_month_year].update({date_day_month: {"incomes": [], "expenses": []}})
+
+            key = "incomes" if state == "+" else "expenses"
+            if state == "+":
+                categories[sel_category][date_month_year][date_day_month][key].extend([amount])
+            else:
+                categories[sel_category][date_month_year][date_day_month][key].extend([-1 * amount])
+
         if message.isdigit():
-            def func():
-                if month_year not in list(categories[selected_category[-1]].keys()):
-                    categories[selected_category[-1]].update({month_year: {day_month: {"incomes": [], "expenses": []}}})
-                else:
-                    categories[selected_category[-1]][month_year].update({day_month: {"incomes": [], "expenses": []}})
-
-            if chat_states[-1] == "+":
+            if chat_states[-1] in ["+", "-"]:
                 try:
-                    categories[selected_category[-1]][month_year][day_month]["incomes"].extend([int(message)])
+                    update_category(selected_category[-1], month_year, day_month, int(message), chat_states[-1])
                 except KeyError:
-                    func()
-                    categories[selected_category[-1]][month_year][day_month]["incomes"].extend([int(message)])
+                    update_category(selected_category[-1], month_year, day_month, int(message), chat_states[-1])
+
                 selected_category.pop()
-
-                m = await send_message(user_id, f"До категорії додано {message} грн.")
-                bot_message_info.append(m.message_id)
-
-            elif chat_states[-1] == "-":
-                try:
-                    categories[selected_category[-1]][month_year][day_month]["expenses"].extend([-1 * (int(message))])
-                except KeyError:
-                    func()
-                    categories[selected_category[-1]][month_year][day_month]["expenses"].extend([-1 * (int(message))])
-                selected_category.pop()
-
-                m = await send_message(user_id, f"До категорії додано -{message} грн.")
+                amount_msg = message if chat_states[-1] == "+" else f"-{message}"
+                m = await send_message(user_id, f"До категорії додано {amount_msg} грн.")
                 bot_message_info.append(m.message_id)
 
             chat_states.append("До категорії додано")
@@ -441,12 +436,12 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             with open("bot_data.json", "w") as f:
                 json.dump(data_base, f, indent=4)
 
-            if len(categories) == 0 or sum(function(update).values()) == 0:
+            if len(categories) == 0 or sum(read_data(update).values()) == 0:
                 m_info = await reply_text(f"Поки немає жодних {category_type}", reply_markup=nav.menu)
                 bot_message_info.append(m_info.message_id)
                 chat_states.pop()
             else:
-                formatted_categories = [f"{category} ({amount} грн.)" for category, amount in function(update).items()]
+                formatted_categories = [f"{category} ({amount} грн.)" for category, amount in read_data(update).items()]
                 categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_categories)])
 
                 m_categories_list = await send_message(user_id, categories_list)
@@ -503,7 +498,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                     json.dump(data_base, f, indent=4)
 
                 trans_dict = {}
-                trans_dict.update(function(update)[selected_category[-1]])
+                trans_dict.update(read_data(update)[selected_category[-1]])
                 for_selected_month = list(trans_dict[selected_date[-1]].values())
                 total_sum = sum(num for inner_list in for_selected_month for num in inner_list)
                 formatted = []
@@ -513,10 +508,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                     formatted.extend([f"{current_day} ({sum(values)} грн.)\n{result}"])
 
                 if chat_states[-1] == "Доходи детально":
-                    for current_day, values in function(update)[selected_category[-1]][selected_date[-1]].items():
+                    for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
                         format_values()
                 elif chat_states[-1] == "Витрати детально":
-                    for current_day, values in function(update)[selected_category[-1]][selected_date[-1]].items():
+                    for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
                         format_values()
 
                 detailed_list = "\n\n".join(formatted)
@@ -544,18 +539,18 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             if message.isalpha():
                 selected_category.append(message)
                 if chat_states[-1] == "Переглянути доходи":
-                    await detail_transaction(nav.menu_show_incomes, function(update))
+                    await detail_transaction(nav.menu_show_incomes, read_data(update))
 
                 elif chat_states[-1] == "Переглянути витрати":
-                    await detail_transaction(nav.menu_show_expenses, function(update))
+                    await detail_transaction(nav.menu_show_expenses, read_data(update))
 
             elif message.isnumeric():
                 if int(message) != 0:
                     if chat_states[-1] == "Переглянути доходи":
-                        await detail_transaction(nav.menu_show_incomes, function(update))
+                        await detail_transaction(nav.menu_show_incomes, read_data(update))
 
                     elif chat_states[-1] == "Переглянути витрати":
-                        await detail_transaction(nav.menu_show_expenses, function(update))
+                        await detail_transaction(nav.menu_show_expenses, read_data(update))
                 else:
                     m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
                     bot_message_info.append(m.message_id)
