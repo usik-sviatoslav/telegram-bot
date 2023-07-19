@@ -625,11 +625,16 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
     elif chat_states[-1] in ["Доходи детально", "Витрати детально"]:
         # General functions
-        if message == "Попередній місяць":
+        if message in ["Попередній місяць", "→"]:
             logging.info(f'Button "{message}" was triggered')
-            selected_date.append((datetime.strptime(selected_date[-1], "%m.%Y") - timedelta(days=1)).strftime("%m.%Y"))
-            with open("bot_data.json", "w") as file:
-                json.dump(data_base, file, indent=4)
+            if message == "Попередній місяць":
+                selected_date.append(
+                    (datetime.strptime(selected_date[-1], "%m.%Y") - timedelta(days=1)).strftime("%m.%Y")
+                )
+            elif message == "→":
+                selected_date.pop()
+            with open("bot_data.json", "w") as fi:
+                json.dump(data_base, fi, indent=4)
 
             if chat_states[-1] == "Доходи детально":
                 await detail_transaction(
@@ -639,10 +644,6 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 await detail_transaction(
                     update, context, nav.menu_show_expenses_1, nav.menu_show_expenses_2, read_data(update)
                 )
-
-        elif message == "→":
-            logging.info(f'Button "{message}" was triggered')
-            # chat_states.append(message)
 
         elif message == "Меню":
             await back_to_previous(update, context)
