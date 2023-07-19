@@ -50,11 +50,19 @@ menu = ReplyKeyboardMarkup(
     [[btn_show_expenses, btn_show_incomes], [btn_statistic], [btn_show_category], [btn_back]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
-menu_show_expenses = ReplyKeyboardMarkup(
+menu_show_expenses_1 = ReplyKeyboardMarkup(
+    [[btn_previous_month], [btn_remove, btn_menu, btn_add]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+)
+menu_show_expenses_2 = ReplyKeyboardMarkup(
     [[btn_previous_month, btn_forward], [btn_remove, btn_menu, btn_add]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
-menu_show_incomes = ReplyKeyboardMarkup(
+menu_show_incomes_1 = ReplyKeyboardMarkup(
+    [[btn_previous_month], [btn_remove, btn_menu, btn_add]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+)
+menu_show_incomes_2 = ReplyKeyboardMarkup(
     [[btn_previous_month, btn_forward], [btn_remove, btn_menu, btn_add]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
