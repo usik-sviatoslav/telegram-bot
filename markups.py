@@ -26,8 +26,10 @@ btn_forward = KeyboardButton("→")
 btn_statistic = KeyboardButton("Статистика")
 btn_week = KeyboardButton("Тиждень")
 btn_month = KeyboardButton("Місяць")
-btn_previous_month = KeyboardButton("Попередній місяць")
 btn_year = KeyboardButton("Рік")
+btn_previous_week = KeyboardButton("Попередній тиждень")
+btn_previous_month = KeyboardButton("Попередній місяць")
+btn_previous_year = KeyboardButton("Попередній рік")
 
 btn_add_category = KeyboardButton("Додати категорію")
 btn_remove_category = KeyboardButton("Видалити категорію")
@@ -66,8 +68,28 @@ menu_show_incomes_2 = ReplyKeyboardMarkup(
     [[btn_previous_month, btn_forward], [btn_remove, btn_menu, btn_add]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
-menu_show_statistic = ReplyKeyboardMarkup(
-    [[btn_week, btn_month, btn_year], [btn_back]],
+menu_show_statistic_week_1 = ReplyKeyboardMarkup(
+    [[btn_previous_week, btn_month], [btn_back]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+)
+menu_show_statistic_week_2 = ReplyKeyboardMarkup(
+    [[btn_previous_week, btn_month, btn_forward], [btn_back]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+)
+menu_show_statistic_month_1 = ReplyKeyboardMarkup(
+    [[btn_previous_month, btn_year], [btn_back]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+)
+menu_show_statistic_month_2 = ReplyKeyboardMarkup(
+    [[btn_previous_month, btn_year, btn_forward], [btn_back]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+)
+menu_show_statistic_year_1 = ReplyKeyboardMarkup(
+    [[btn_previous_year, btn_week], [btn_back]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+)
+menu_show_statistic_year_2 = ReplyKeyboardMarkup(
+    [[btn_previous_year, btn_week, btn_forward], [btn_back]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_category = ReplyKeyboardMarkup(

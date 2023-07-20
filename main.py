@@ -217,7 +217,7 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
         json.dump(data_base, file, indent=4)
 
 
-def read_data(update: Update):
+def read_data(update: Update, current_dict=None):
     with open("bot_data.json", "r") as file:
         data_base = json.load(file)
 
@@ -272,6 +272,8 @@ def read_data(update: Update):
         return date_incomes_dict
     elif chat_states[-1] == "Витрати детально":
         return date_expenses_dict
+    elif chat_states[-1] == "Статистика":
+        return incomes_dict if current_dict == "inc" else expenses_dict
 
 
 async def detail_transaction(update, context, reply_markup_1, reply_markup_2, f_incomes_expenses, message=None):
@@ -527,8 +529,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 bot_message_info.append(m_info.message_id)
                 chat_states.pop()
             else:
-                formatted_categories = [f"{category} ({amount} грн.)" for category, amount in read_data(update).items()]
-                categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_categories)])
+                categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
 
                 m_categories_list = await send_message(user_id, categories_list)
                 bot_message.append(m_categories_list.message_id)
@@ -547,10 +548,35 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
         elif message == "Статистика":
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
+            with open("bot_data.json", "w") as file:
+                json.dump(data_base, file, indent=4)
 
-            m = await reply_text("Тут буде показано статистику.", reply_markup=nav.menu_show_statistic)
-            bot_message.append(m.message_id)
-            bot_message_info.append(0)
+            list_of_inc = []
+            list_of_exp = []
+
+            formatted_inc = [f"{category} ({amount} грн.)" for category, amount in read_data(update, "inc").items()]
+            if len(formatted_inc) != 0:
+                categories_inc_amounts = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_inc)])
+                list_of_inc.extend([f'Доходи за {"тиждень"}:'])
+                list_of_inc.extend([categories_inc_amounts])
+            else:
+                list_of_inc.extend(["Доходів поки не було"])
+
+            formatted_exp = [f"{category} ({amount} грн.)" for category, amount in read_data(update, "exp").items()]
+            if len(formatted_exp) != 0:
+                categories_exp_amounts = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_exp)])
+                list_of_exp.extend([f'Витрати за {"тиждень"}:'])
+                list_of_exp.extend([categories_exp_amounts])
+            else:
+                list_of_exp.extend(["Витрат поки не було"])
+
+            formatted_list_of_inc = "\n\n".join(list_of_inc)
+            formatted_list_of_exp = "\n\n".join(list_of_exp)
+
+            m_list_inc = await send_message(user_id, formatted_list_of_inc)
+            bot_message_info.append(m_list_inc.message_id)
+            m_list_exp = await reply_text(formatted_list_of_exp, reply_markup=nav.menu_show_statistic_week_1)
+            bot_message.append(m_list_exp.message_id)
 
         elif message == "Переглянути категорії":
             logging.info(f'Button "{message}" was triggered')
