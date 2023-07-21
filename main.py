@@ -288,6 +288,7 @@ async def detail_transaction(update, context, reply_markup_1, reply_markup_2, f_
     bot_message = data_base[user_id]["bot_message"]
     chat_states = data_base[user_id]["chat_states"]
     selected_date = data_base[user_id]["selected_date"]
+    categories = data_base[user_id]['categories']
     selected_category = data_base[user_id]["selected_category"]
 
     func = int(message) <= len(f_incomes_expenses) if isinstance(message, int) else message
@@ -309,6 +310,10 @@ async def detail_transaction(update, context, reply_markup_1, reply_markup_2, f_
                 json.dump(data_base, f, indent=4)
 
         try:
+            if month_year not in list(categories[selected_category[-1]].keys()):
+                selected_date.pop()
+                selected_date.append(list(categories[selected_category[-1]].keys())[-1])
+
             trans_dict = {}
             trans_dict.update(read_data(update)[selected_category[-1]])
             for_selected_month = list(trans_dict[selected_date[-1]].values())
@@ -529,7 +534,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 bot_message_info.append(m_info.message_id)
                 chat_states.pop()
             else:
-                categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
+                formatted_categories = [f"{category}" for category, amount in read_data(update).items()]
+                categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_categories)])
 
                 m_categories_list = await send_message(user_id, categories_list)
                 bot_message.append(m_categories_list.message_id)
