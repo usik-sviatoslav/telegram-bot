@@ -225,7 +225,25 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
         json.dump(data_base, file, indent=4)
 
 
-def read_data(update: Update, current_dict=None):
+def sort_by_week(dates_dict):
+    sorted_dates = sorted(dates_dict.keys(), key=lambda x: datetime.strptime(x, "%d.%m.%Y"))
+    weekly_dict = {}
+
+    for date_str in sorted_dates:
+        date = datetime.strptime(date_str, "%d.%m.%Y")
+        start_of_week = date - timedelta(days=date.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        week_str = f"{start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}"
+
+        if week_str not in weekly_dict:
+            weekly_dict[week_str] = 0
+
+        weekly_dict[week_str] += dates_dict[date_str]
+
+    return weekly_dict
+
+
+def read_data(update: Update, current_dict=None, date_type=None):
     with open("bot_data.json", "r") as file:
         data_base = json.load(file)
 
@@ -236,12 +254,16 @@ def read_data(update: Update, current_dict=None):
     # Get income/expense values to the dictionary
     incomes_dict = {}
     expenses_dict = {}
+    week_incomes_dict = {}
+    week_expenses_dict = {}
     date_incomes_dict = {}
     date_expenses_dict = {}
 
     for category, dates in categories.items():
         incomes_list = []
         expenses_list = []
+        all_days_incomes_dict = {}
+        all_days_expenses_dict = {}
         month_incomes_dict = {}
         month_expenses_dict = {}
 
@@ -256,21 +278,43 @@ def read_data(update: Update, current_dict=None):
                 if len(incomes) != 0:
                     incomes_list.extend(incomes)
                     day_incomes_dict[date] = incomes
+                    if date_type == "week":
+                        all_days_incomes_dict.update({date: sum(incomes)})
+                else:
+                    if date_type == "week":
+                        all_days_incomes_dict.update({date: 0})
+
                 if len(expenses) != 0:
                     expenses_list.extend(expenses)
                     day_expenses_dict[date] = expenses
+                    if date_type == "week":
+                        all_days_expenses_dict.update({date: sum(expenses)})
+
+                    # elif date_type == "month":
+                    # elif date_type == "year":
+                else:
+                    if date_type == "week":
+                        all_days_expenses_dict.update({date: 0})
 
             if len(incomes_list) != 0:
                 incomes_dict[category] = sum(incomes_list)
                 month_incomes_dict[month] = day_incomes_dict
+                date_incomes_dict[category] = month_incomes_dict
+                if date_type == "week":
+                    week_incomes_dict[category] = all_days_incomes_dict
+            else:
+                if date_type == "week":
+                    week_incomes_dict[category] = all_days_incomes_dict
+
             if len(expenses_list) != 0:
                 expenses_dict[category] = sum(expenses_list)
                 month_expenses_dict[month] = day_expenses_dict
-
-        if len(incomes_list) != 0:
-            date_incomes_dict[category] = month_incomes_dict
-        if len(expenses_list) != 0:
-            date_expenses_dict[category] = month_expenses_dict
+                date_expenses_dict[category] = month_expenses_dict
+                if date_type == "week":
+                    week_expenses_dict[category] = sort_by_week(all_days_expenses_dict)
+            else:
+                if date_type == "week":
+                    week_expenses_dict[category] = sort_by_week(all_days_expenses_dict)
 
     if chat_states[-1] == "Переглянути доходи":
         return incomes_dict
@@ -341,7 +385,7 @@ async def detail_transaction(update, context, reply_markup, f_incomes_expenses, 
 
             def format_values():
                 result = "\n".join([f"{i}. {line} грн." for i, line in enumerate(values, start=1)])
-                formatted.extend([f"{current_day} ({sum(values)} грн.)\n{result}"])
+                formatted.extend([f"{current_day[:5]} ({sum(values)} грн.)\n{result}"])
 
             if chat_states[-1] == "Доходи детально":
                 for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
@@ -389,8 +433,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     send_message = context.bot.send_message
     delete_message = context.bot.delete_message
     user_id = str(update.effective_chat.id)
-    month_year = str(datetime.now().date().strftime("%m.%Y"))
-    day_month = str(datetime.now().date().strftime("%d.%m"))
+    month_y = str(datetime.now().date().strftime("%m.%Y"))
+    day_m_y = str(datetime.now().date().strftime("%d.%m.%Y"))
 
     bot_message_info = data_base[user_id]["bot_message_info"]
     bot_message = data_base[user_id]["bot_message"]
@@ -504,24 +548,24 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 data_base = json.load(file)
 
     elif chat_states[-1] in ["+", "-"]:
-        def update_category(sel_category, date_month_year, date_day_month, amount, state):
-            if date_month_year not in list(categories[sel_category].keys()):
-                categories[sel_category].update({date_month_year: {date_day_month: {"incomes": [], "expenses": []}}})
-            elif date_day_month not in list(categories[sel_category][date_month_year].keys()):
-                categories[sel_category][date_month_year].update({date_day_month: {"incomes": [], "expenses": []}})
+        def update_category(sel_category, date_month_y, date_day_m_y, amount, state):
+            if date_month_y not in list(categories[sel_category].keys()):
+                categories[sel_category].update({date_month_y: {date_day_m_y: {"incomes": [], "expenses": []}}})
+            elif date_day_m_y not in list(categories[sel_category][date_month_y].keys()):
+                categories[sel_category][date_month_y].update({date_day_m_y: {"incomes": [], "expenses": []}})
 
             key = "incomes" if state == "+" else "expenses"
             if state == "+":
-                categories[sel_category][date_month_year][date_day_month][key].extend([amount])
+                categories[sel_category][date_month_y][date_day_m_y][key].extend([amount])
             else:
-                categories[sel_category][date_month_year][date_day_month][key].extend([-1 * amount])
+                categories[sel_category][date_month_y][date_day_m_y][key].extend([-1 * amount])
 
         if message.isdigit():
             if chat_states[-1] in ["+", "-"]:
                 try:
-                    update_category(selected_category[-1], month_year, day_month, int(message), chat_states[-1])
+                    update_category(selected_category[-1], month_y, day_m_y, int(message), chat_states[-1])
                 except KeyError:
-                    update_category(selected_category[-1], month_year, day_month, int(message), chat_states[-1])
+                    update_category(selected_category[-1], month_y, day_m_y, int(message), chat_states[-1])
 
                 selected_category.pop()
                 amount_msg = message if chat_states[-1] == "+" else f"-{message}"
@@ -578,8 +622,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             list_of_inc = []
             list_of_exp = []
-
-            formatted_inc = [f"{category} ({amount} грн.)" for category, amount in read_data(update, "inc").items()]
+            date_type = "week"
+            formatted_inc = [
+                f"{category} ({amount} грн.)" for category, amount in read_data(update, "inc", date_type).items()
+            ]
             if len(formatted_inc) != 0:
                 categories_inc_amounts = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_inc)])
                 list_of_inc.extend([f'Доходи за {"тиждень"}:'])
@@ -587,7 +633,9 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             else:
                 list_of_inc.extend(["Доходів поки не було"])
 
-            formatted_exp = [f"{category} ({amount} грн.)" for category, amount in read_data(update, "exp").items()]
+            formatted_exp = [
+                f"{category} ({amount} грн.)" for category, amount in read_data(update, "exp", date_type).items()
+            ]
             if len(formatted_exp) != 0:
                 categories_exp_amounts = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_exp)])
                 list_of_exp.extend([f'Витрати за {"тиждень"}:'])
@@ -625,7 +673,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             if message.isalpha():
                 selected_category.append(message)
 
-            selected_date.append(month_year)
+            selected_date.append(month_y)
             with open("bot_data.json", "w") as file:
                 json.dump(data_base, file, indent=4)
 
