@@ -1,5 +1,8 @@
 import json
 import logging
+import re
+from collections import OrderedDict
+
 import markups as nav
 import my_token as token
 
@@ -654,7 +657,10 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             selected_category.append(message)
             logging.info(f'Category "{message}" was selected')
 
-            m = await reply_text(f"Обрано категорію: {message}", reply_markup=nav.menu_incomes_expenses)
+            m = await reply_text(
+                f"{day_m_y}\n"
+                f"Категорія: {message}", reply_markup=nav.menu_incomes_expenses
+            )
             bot_message_info.append(m.message_id)
 
         elif message == "Додати категорію":
@@ -676,7 +682,8 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 logging.info(f'Category "{selected_category[0]}" was selected')
 
                 m = await reply_text(
-                    f"Обрано категорію: {selected_category[0]}", reply_markup=nav.menu_incomes_expenses
+                    f"{day_m_y}\n"
+                    f"Категорія: {selected_category[0]}", reply_markup=nav.menu_incomes_expenses
                 )
                 bot_message.append(m.message_id)
                 bot_message_info.append(0)
@@ -704,6 +711,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
             m = await reply_text("Введіть суму доходу", reply_markup=nav.menu_btn_back)
             bot_message_info.append(m.message_id)
+
         elif message == "-":
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
@@ -711,30 +719,42 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             m = await reply_text("Введіть суму витрат", reply_markup=nav.menu_btn_back)
             bot_message_info.append(m.message_id)
 
+        elif message == "Обрати інший день":
+            logging.info(f'Button "{message}" was triggered')
+            chat_states.append(message)
+
+            m = await reply_text("Введіть дату", reply_markup=nav.menu_btn_back_date)
+            bot_message_info.append(m.message_id)
+
         elif message == "Назад":
             await back_to_previous(update, context)
             with open("bot_data.json", "r") as file:
                 data_base = json.load(file)
 
-    elif chat_states[-1] in ["+", "-"]:
-        def update_category(sel_category, date_month_y, date_day_m_y, amount, state):
+    elif chat_states[-1] in ["+", "-", "Обрати інший день"]:
+        def update_category(sel_category, date_month_y, date_day_m_y, state, amount=None):
             if date_month_y not in list(categories[sel_category].keys()):
                 categories[sel_category].update({date_month_y: {date_day_m_y: {"incomes": [], "expenses": []}}})
             elif date_day_m_y not in list(categories[sel_category][date_month_y].keys()):
                 categories[sel_category][date_month_y].update({date_day_m_y: {"incomes": [], "expenses": []}})
 
-            key = "incomes" if state == "+" else "expenses"
-            if state == "+":
-                categories[sel_category][date_month_y][date_day_m_y][key].extend([amount])
-            else:
-                categories[sel_category][date_month_y][date_day_m_y][key].extend([-1 * amount])
+            if chat_states[-1] in ["+", "-"]:
+                key = "incomes" if state == "+" else "expenses"
+                date_day_m_y = selected_date[-1] if len(selected_date) != 0 else date_day_m_y
+                if state == "+":
+                    categories[sel_category][date_month_y][date_day_m_y][key].extend([amount])
+                else:
+                    categories[sel_category][date_month_y][date_day_m_y][key].extend([-1 * amount])
+
+            categories[sel_category][date_month_y] = OrderedDict(sorted(categories[sel_category][date_month_y].items()))
+            categories[sel_category] = OrderedDict(sorted(categories[sel_category].items()))
 
         if message.isdigit():
             if chat_states[-1] in ["+", "-"]:
                 try:
-                    update_category(selected_category[-1], month_y, day_m_y, int(message), chat_states[-1])
+                    update_category(selected_category[-1], month_y, day_m_y, chat_states[-1], int(message))
                 except KeyError:
-                    update_category(selected_category[-1], month_y, day_m_y, int(message), chat_states[-1])
+                    update_category(selected_category[-1], month_y, day_m_y, chat_states[-1], int(message))
 
                 selected_category.pop()
                 amount_msg = message if chat_states[-1] == "+" else f"-{message}"
@@ -745,6 +765,47 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             await delete_message(user_id, bot_message_info[0])
             bot_message_info.pop(0)
             sleep(2)
+
+        elif chat_states[-1] == "Обрати інший день":
+            if re.match(r"\d{2}\.\d{2}\.\d{4}", message):
+                try:
+                    data = datetime.strptime(message, "%d.%m.%Y")
+                    month_y = f'{data.strftime("%m.%Y")}'
+                    day_m_y = f'{data.strftime("%d.%m.%Y")}'
+
+                    if len(selected_date) != 0:
+                        selected_date.pop()
+                        selected_date.append(day_m_y)
+                    else:
+                        selected_date.append(day_m_y)
+
+                    update_category(selected_category[-1], month_y, day_m_y, chat_states[-1])
+                    chat_states.pop()
+
+                    m = await reply_text(
+                        f"Обрано {selected_date[-1]}\n"
+                        f"Категорія: {selected_category[0]}", reply_markup=nav.menu_incomes_expenses
+                    )
+                    bot_message.append(m.message_id)
+                    bot_message_info.append(0)
+
+                except ValueError:
+                    logging.info('No valid date')
+                    no_in_list_m = await send_message(user_id, 'Дату введено не коректно!')
+                    bot_message_info.append(no_in_list_m.message_id)
+
+                    sleep(2)
+                    await delete_message(user_id, bot_message_info[-1])
+                    bot_message_info.pop()
+
+            else:
+                logging.info('No valid date')
+                no_in_list_m = await send_message(user_id, 'Дату введено не коректно!')
+                bot_message_info.append(no_in_list_m.message_id)
+
+                sleep(2)
+                await delete_message(user_id, bot_message_info[-1])
+                bot_message_info.pop()
 
         elif message == "Назад":
             await back_to_previous(update, context)

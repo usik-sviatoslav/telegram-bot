@@ -11,6 +11,8 @@ buttons = [
 
 btn_incomes = KeyboardButton("+")
 btn_expenses = KeyboardButton("-")
+btn_other_day = KeyboardButton("Обрати інший день")
+
 btn_show_incomes = KeyboardButton("Переглянути доходи")
 btn_show_expenses = KeyboardButton("Переглянути витрати")
 
@@ -44,8 +46,8 @@ home = ReplyKeyboardMarkup(
     [[btn_new], [btn_menu]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
-menu_expenses_incomes = ReplyKeyboardMarkup(
-    [[btn_expenses, btn_incomes], [btn_back]],
+menu_incomes_expenses = ReplyKeyboardMarkup(
+    [[btn_incomes, btn_expenses], [btn_other_day],  [btn_back]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu = ReplyKeyboardMarkup(
@@ -100,9 +102,9 @@ menu_btn_back = ReplyKeyboardMarkup(
     [[btn_back]],
     resize_keyboard=True, is_persistent=True
 )
-menu_incomes_expenses = ReplyKeyboardMarkup(
-    [[btn_incomes, btn_expenses], [btn_back]],
-    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+menu_btn_back_date = ReplyKeyboardMarkup(
+    [[btn_back]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="DD.MM.YYYY"
 )
 menu_new_category = ReplyKeyboardMarkup(
     [[btn_add_category], [btn_home]],
