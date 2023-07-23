@@ -169,8 +169,8 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
     with open("bot_data.json", "r") as file:
         data_base = json.load(file)
 
-    user_id = str(update.effective_chat.id)
     reply_text = update.message.reply_text
+    user_id = str(update.effective_chat.id)
     delete_message = context.bot.delete_message
 
     bot_message = data_base[user_id]["bot_message"]
@@ -220,6 +220,271 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
     except IndexError:
         logging.warning(f"⚠️ List index out of range ⚠️")
         await home(update, context)
+
+    with open("bot_data.json", "w") as file:
+        json.dump(data_base, file, indent=4)
+
+
+async def category_actions(update, context, message):
+    with open("bot_data.json", "r") as file:
+        data_base = json.load(file)
+
+    reply_text = update.message.reply_text
+    user_id = str(update.effective_chat.id)
+    delete_message = context.bot.delete_message
+    send_message = context.bot.send_message
+
+    bot_message = data_base[user_id]["bot_message"]
+    bot_message_info = data_base[user_id]["bot_message_info"]
+    chat_states = data_base[user_id]["chat_states"]
+    selected_category = data_base[user_id]["selected_category"]
+    categories = data_base[user_id]['categories']
+
+    async def show_category_list():
+        new_category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
+        new_list_m = await reply_text(new_category_list, reply_markup=nav.menu_btn_back)
+        bot_message.append(new_list_m.message_id)
+
+    if chat_states[-1] == "Додати категорію":
+        categories.update({message: {}})
+        add_category_m = await send_message(user_id, f'Додано нову категорію "{message}"')
+        bot_message_info.append(add_category_m.message_id)
+
+        sleep(2)
+        await delete_message(user_id, bot_message_info[-1])
+        bot_message_info.pop()
+
+        await show_category_list()
+
+    elif chat_states[-1] == "Видалити категорію":
+        if message.isalpha():
+            if message in categories:
+                selected_category.append(message)
+            else:
+                logging.info(f'No category "{message}"')
+                no_category_m = await send_message(user_id, f'Категорії "{message}" немає')
+                bot_message_info.append(no_category_m.message_id)
+
+                sleep(2)
+                await delete_message(user_id, bot_message_info[-1])
+                bot_message_info.pop()
+
+        elif message.isnumeric():
+            if int(message) <= len(categories) and int(message) != 0:
+                selected_category.append(list(categories.keys())[int(message) - 1])
+            else:
+                logging.info('No number in list')
+                no_in_list_m = await send_message(user_id, 'Немає такого значення у списку!')
+                bot_message_info.append(no_in_list_m.message_id)
+
+                sleep(2)
+                await delete_message(user_id, bot_message_info[-1])
+                bot_message_info.pop()
+
+        if len(selected_category) != 0:
+            del_category_m = await send_message(user_id, f'Видалено категорію "{selected_category[-1]}"')
+            bot_message_info.append(del_category_m.message_id)
+
+            sleep(2)
+            await delete_message(user_id, bot_message_info[-1])
+            bot_message_info.pop()
+
+            categories.pop(selected_category[-1])
+            selected_category.pop()
+
+            if len(categories) == 0:
+                chat_states.pop()
+                del_all_m = await send_message(user_id, "Усі категорії видалено!")
+                bot_message_info.append(del_all_m.message_id)
+
+                await delete_message(user_id, bot_message_info[0])
+                bot_message_info.pop(0)
+                await delete_message(user_id, bot_message[-1])
+                bot_message.pop()
+
+                sleep(2)
+                no_category_m = await reply_text("Поки немає жодної категорії", reply_markup=nav.menu_show_category)
+                bot_message_info.append(no_category_m.message_id)
+
+                await delete_message(user_id, bot_message_info[0])
+                bot_message_info.pop(0)
+
+            else:
+                await show_category_list()
+
+    with open("bot_data.json", "w") as file:
+        json.dump(data_base, file, indent=4)
+
+
+async def handle_expense_or_income(update, context, message_type, category_type):
+    logging.info(f'Button "{message_type}" was triggered')
+    with open("bot_data.json", "r") as file:
+        data_base = json.load(file)
+
+    user_id = str(update.effective_chat.id)
+    reply_text = update.message.reply_text
+    send_message = context.bot.send_message
+    categories = data_base[user_id]['categories']
+    chat_states = data_base[user_id]["chat_states"]
+    bot_message = data_base[user_id]["bot_message"]
+    bot_message_info = data_base[user_id]["bot_message_info"]
+
+    if len(categories) == 0 or sum(read_data(update).values()) == 0:
+        m_info = await reply_text(f"Поки немає жодних {category_type}", reply_markup=nav.menu)
+        bot_message_info.append(m_info.message_id)
+        chat_states.pop()
+    else:
+        formatted_categories = [f"{category}" for category, amount in read_data(update).items()]
+        categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_categories)])
+
+        m_categories_list = await send_message(user_id, categories_list)
+        bot_message.append(m_categories_list.message_id)
+        m_info = await reply_text(
+            "Введіть назву або № категорії для перегляду детальної інформації",
+            reply_markup=nav.menu_btn_back
+        )
+        bot_message_info.append(m_info.message_id)
+
+    with open("bot_data.json", "w") as f:
+        json.dump(data_base, f, indent=4)
+
+
+async def handle_statistic(update, context, message_type, date_type=None):
+    logging.info(f'Button "{message_type}" was triggered')
+    with open("bot_data.json", "r") as file:
+        data_base = json.load(file)
+
+    user_id = str(update.effective_chat.id)
+    reply_text = update.message.reply_text
+    send_message = context.bot.send_message
+    bot_message = data_base[user_id]["bot_message"]
+    bot_message_info = data_base[user_id]["bot_message_info"]
+
+    list_of_inc = []
+    list_of_exp = []
+    formatted_inc = [
+        f"{category} ({amount} грн.)" for category, amount in read_data(update, "inc", date_type).items()
+    ]
+    if len(formatted_inc) != 0:
+        categories_inc_amounts = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_inc)])
+        list_of_inc.extend([f'Доходи за {"тиждень"}:'])
+        list_of_inc.extend([categories_inc_amounts])
+    else:
+        list_of_inc.extend(["Доходів поки не було"])
+
+    formatted_exp = [
+        f"{category} ({amount} грн.)" for category, amount in read_data(update, "exp", date_type).items()
+    ]
+    if len(formatted_exp) != 0:
+        categories_exp_amounts = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_exp)])
+        list_of_exp.extend([f'Витрати за {"тиждень"}:'])
+        list_of_exp.extend([categories_exp_amounts])
+    else:
+        list_of_exp.extend(["Витрат поки не було"])
+
+    formatted_list_of_inc = "\n\n".join(list_of_inc)
+    formatted_list_of_exp = "\n\n".join(list_of_exp)
+
+    m_list_inc = await send_message(user_id, formatted_list_of_inc)
+    bot_message_info.append(m_list_inc.message_id)
+    m_list_exp = await reply_text(formatted_list_of_exp, reply_markup=nav.menu_show_statistic_week_1)
+    bot_message.append(m_list_exp.message_id)
+
+    with open("bot_data.json", "w") as f:
+        json.dump(data_base, f, indent=4)
+
+
+async def detail_transaction(update, context, reply_markup, f_incomes_expenses, category=None, forward=None):
+    with open("bot_data.json", "r") as file:
+        data_base = json.load(file)
+
+    user_id = str(update.effective_chat.id)
+    reply_text = update.message.reply_text
+    send_message = context.bot.send_message
+    bot_message_info = data_base[user_id]["bot_message_info"]
+    bot_message = data_base[user_id]["bot_message"]
+    chat_states = data_base[user_id]["chat_states"]
+    selected_date = data_base[user_id]["selected_date"]
+    categories = data_base[user_id]['categories']
+    selected_category = data_base[user_id]["selected_category"]
+    selected_category_dates = data_base[user_id]["selected_category_dates"]
+
+    func = int(category) <= len(f_incomes_expenses) if isinstance(category, int) else category
+    num = int(category) if isinstance(category, int) else category
+
+    if func or func is None:
+        action = ""
+        if chat_states[-1] in ["Переглянути доходи", "Доходи детально"]:
+            action = "Доходи"
+        elif chat_states[-1] in ["Переглянути витрати", "Витрати детально"]:
+            action = "Витрати"
+
+        if isinstance(category, int):
+            selected_category.append(list(f_incomes_expenses.keys())[num - 1])
+
+        if chat_states[-1] in ["Переглянути доходи", "Переглянути витрати"]:
+            chat_states.append(f"{action} детально")
+
+        if len(selected_category_dates) == 0 and len(selected_date) == 1:
+            selected_category_dates.extend(list(categories[selected_category[-1]].keys()))
+
+        with open("bot_data.json", "w") as f:
+            json.dump(data_base, f, indent=4)
+
+        try:
+            if selected_date[-1] not in list(categories[selected_category[-1]].keys()):
+                selected_date.pop()
+                if len(selected_category_dates) != 0:
+                    selected_date.append(selected_category_dates[-1])
+                    selected_category_dates.pop()
+                else:
+                    selected_category_dates.pop()
+            else:
+                if len(selected_category_dates) != 0 and forward is None:
+                    selected_category_dates.pop()
+
+            trans_dict = {}
+            trans_dict.update(read_data(update)[selected_category[-1]])
+            for_selected_month = list(trans_dict[selected_date[-1]].values())
+            total_sum = sum(num for inner_list in for_selected_month for num in inner_list)
+            formatted = []
+
+            def format_values():
+                result = "\n".join([f"{i}. {line} грн." for i, line in enumerate(values, start=1)])
+                formatted.extend([f"{current_day[:5]} ({sum(values)} грн.)\n{result}"])
+
+            if chat_states[-1] == "Доходи детально":
+                for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
+                    format_values()
+            elif chat_states[-1] == "Витрати детально":
+                for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
+                    format_values()
+
+            detailed_list = "\n\n".join(formatted)
+
+            trans = await reply_text(
+                f'{action} у категорії "{selected_category[-1]}"\n'
+                f'за {selected_date[-1]} ({total_sum} грн.)\n\n'
+                f'{detailed_list}', reply_markup=reply_markup
+            )
+
+            if chat_states[-1] == "Доходи детально":
+                bot_message.append(trans.message_id)
+            elif chat_states[-1] == "Витрати детально":
+                bot_message.append(trans.message_id)
+
+            bot_message_info.append(0)
+
+        except IndexError:
+            m = await send_message(user_id, 'Більше немає записів!')
+            bot_message_info.append(m.message_id)
+            sleep(2)
+            bot_message_info.append(0)
+
+    else:
+        selected_date.pop()
+        trans = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
+        bot_message_info.append(trans.message_id)
 
     with open("bot_data.json", "w") as file:
         json.dump(data_base, file, indent=4)
@@ -326,102 +591,6 @@ def read_data(update: Update, current_dict=None, date_type=None):
         return date_expenses_dict
     elif chat_states[-1] == "Статистика":
         return incomes_dict if current_dict == "inc" else expenses_dict
-
-
-async def detail_transaction(update, context, reply_markup, f_incomes_expenses, category=None, forward=None):
-    with open("bot_data.json", "r") as file:
-        data_base = json.load(file)
-
-    user_id = str(update.effective_chat.id)
-    reply_text = update.message.reply_text
-    send_message = context.bot.send_message
-    bot_message_info = data_base[user_id]["bot_message_info"]
-    bot_message = data_base[user_id]["bot_message"]
-    chat_states = data_base[user_id]["chat_states"]
-    selected_date = data_base[user_id]["selected_date"]
-    categories = data_base[user_id]['categories']
-    selected_category = data_base[user_id]["selected_category"]
-    selected_category_dates = data_base[user_id]["selected_category_dates"]
-
-    func = int(category) <= len(f_incomes_expenses) if isinstance(category, int) else category
-    num = int(category) if isinstance(category, int) else category
-
-    if func or func is None:
-        action = ""
-        if chat_states[-1] in ["Переглянути доходи", "Доходи детально"]:
-            action = "Доходи"
-        elif chat_states[-1] in ["Переглянути витрати", "Витрати детально"]:
-            action = "Витрати"
-
-        if isinstance(category, int):
-            selected_category.append(list(f_incomes_expenses.keys())[num - 1])
-
-        if chat_states[-1] in ["Переглянути доходи", "Переглянути витрати"]:
-            chat_states.append(f"{action} детально")
-
-        if len(selected_category_dates) == 0 and len(selected_date) == 1:
-            selected_category_dates.extend(list(categories[selected_category[-1]].keys()))
-
-        with open("bot_data.json", "w") as f:
-            json.dump(data_base, f, indent=4)
-
-        try:
-            if selected_date[-1] not in list(categories[selected_category[-1]].keys()):
-                selected_date.pop()
-                if len(selected_category_dates) != 0:
-                    selected_date.append(selected_category_dates[-1])
-                    selected_category_dates.pop()
-                else:
-                    selected_category_dates.pop()
-            else:
-                if len(selected_category_dates) != 0 and forward is None:
-                    selected_category_dates.pop()
-
-            trans_dict = {}
-            trans_dict.update(read_data(update)[selected_category[-1]])
-            for_selected_month = list(trans_dict[selected_date[-1]].values())
-            total_sum = sum(num for inner_list in for_selected_month for num in inner_list)
-            formatted = []
-
-            def format_values():
-                result = "\n".join([f"{i}. {line} грн." for i, line in enumerate(values, start=1)])
-                formatted.extend([f"{current_day[:5]} ({sum(values)} грн.)\n{result}"])
-
-            if chat_states[-1] == "Доходи детально":
-                for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
-                    format_values()
-            elif chat_states[-1] == "Витрати детально":
-                for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
-                    format_values()
-
-            detailed_list = "\n\n".join(formatted)
-
-            trans = await reply_text(
-                f'{action} у категорії "{selected_category[-1]}"\n'
-                f'за {selected_date[-1]} ({total_sum} грн.)\n\n'
-                f'{detailed_list}', reply_markup=reply_markup
-            )
-
-            if chat_states[-1] == "Доходи детально":
-                bot_message.append(trans.message_id)
-            elif chat_states[-1] == "Витрати детально":
-                bot_message.append(trans.message_id)
-
-            bot_message_info.append(0)
-
-        except IndexError:
-            m = await send_message(user_id, 'Більше немає записів!')
-            bot_message_info.append(m.message_id)
-            sleep(2)
-            bot_message_info.append(0)
-
-    else:
-        selected_date.pop()
-        trans = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
-        bot_message_info.append(trans.message_id)
-
-    with open("bot_data.json", "w") as file:
-        json.dump(data_base, file, indent=4)
 
 
 async def message_handler(update: Update, context: CallbackContext) -> None:
@@ -586,74 +755,26 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             bot_message_info.append(m.message_id)
 
     elif chat_states[-1] == "Меню":
-        async def handle_expense_or_income(message_type, category_type):
-            logging.info(f'Button "{message_type}" was triggered')
-            chat_states.append(message_type)
+        if message in ["Переглянути доходи", "Переглянути витрати"]:
+            chat_states.append(message)
             with open("bot_data.json", "w") as f:
                 json.dump(data_base, f, indent=4)
 
-            if len(categories) == 0 or sum(read_data(update).values()) == 0:
-                m_info = await reply_text(f"Поки немає жодних {category_type}", reply_markup=nav.menu)
-                bot_message_info.append(m_info.message_id)
-                chat_states.pop()
-            else:
-                formatted_categories = [f"{category}" for category, amount in read_data(update).items()]
-                categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_categories)])
-
-                m_categories_list = await send_message(user_id, categories_list)
-                bot_message.append(m_categories_list.message_id)
-                m_info = await reply_text(
-                    "Введіть назву або № категорії для перегляду детальної інформації",
-                    reply_markup=nav.menu_btn_back
-                )
-                bot_message_info.append(m_info.message_id)
-
-        if message in ["Переглянути доходи", "Переглянути витрати"]:
-            if message == "Переглянути доходи":
-                await handle_expense_or_income(message, "доходів")
-            elif message == "Переглянути витрати":
-                await handle_expense_or_income(message, "витрат")
+            command = "доходів" if message == "Переглянути доходи" else "витрат"
+            await handle_expense_or_income(update, context, message, command)
 
         elif message == "Статистика":
-            logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
-            with open("bot_data.json", "w") as file:
-                json.dump(data_base, file, indent=4)
+            with open("bot_data.json", "w") as f:
+                json.dump(data_base, f, indent=4)
 
-            list_of_inc = []
-            list_of_exp = []
-            date_type = "week"
-            formatted_inc = [
-                f"{category} ({amount} грн.)" for category, amount in read_data(update, "inc", date_type).items()
-            ]
-            if len(formatted_inc) != 0:
-                categories_inc_amounts = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_inc)])
-                list_of_inc.extend([f'Доходи за {"тиждень"}:'])
-                list_of_inc.extend([categories_inc_amounts])
-            else:
-                list_of_inc.extend(["Доходів поки не було"])
-
-            formatted_exp = [
-                f"{category} ({amount} грн.)" for category, amount in read_data(update, "exp", date_type).items()
-            ]
-            if len(formatted_exp) != 0:
-                categories_exp_amounts = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_exp)])
-                list_of_exp.extend([f'Витрати за {"тиждень"}:'])
-                list_of_exp.extend([categories_exp_amounts])
-            else:
-                list_of_exp.extend(["Витрат поки не було"])
-
-            formatted_list_of_inc = "\n\n".join(list_of_inc)
-            formatted_list_of_exp = "\n\n".join(list_of_exp)
-
-            m_list_inc = await send_message(user_id, formatted_list_of_inc)
-            bot_message_info.append(m_list_inc.message_id)
-            m_list_exp = await reply_text(formatted_list_of_exp, reply_markup=nav.menu_show_statistic_week_1)
-            bot_message.append(m_list_exp.message_id)
+            await handle_statistic(update, context, message, "week")
 
         elif message == "Переглянути категорії":
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
+            with open("bot_data.json", "w") as f:
+                json.dump(data_base, f, indent=4)
 
             if len(categories) == 0:
                 m = await reply_text("Поки немає жодної категорії", reply_markup=nav.menu_show_category)
@@ -663,10 +784,14 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 bot_message.append(m.message_id)
                 bot_message_info.append(0)
 
+            with open("bot_data.json", "w") as f:
+                json.dump(data_base, f, indent=4)
+
         elif message == "Назад":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r") as file:
-                data_base = json.load(file)
+
+        with open("bot_data.json", "r") as file:
+            data_base = json.load(file)
 
     elif chat_states[-1] in ["Переглянути доходи", "Переглянути витрати"]:
         if message in categories or message.isnumeric():
@@ -740,8 +865,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Меню":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r") as file:
-                data_base = json.load(file)
+
         else:
             if message not in ["Видалити", "Додати"]:
                 logging.info(f'Invalid command was entered')
@@ -789,8 +913,9 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         elif message == "Назад":
             await back_to_previous(update, context)
-            with open("bot_data.json", "r") as file:
-                data_base = json.load(file)
+
+        with open("bot_data.json", "r") as file:
+            data_base = json.load(file)
 
     elif chat_states[-1] == "Переглянути категорії":
         if message == "Додати категорію":
@@ -823,73 +948,17 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 data_base = json.load(file)
 
     elif chat_states[-1] in ["Додати категорію", "Видалити категорію"]:
-        async def category_actions():
-            # Notifications about creating or deleting a category
-            if chat_states[-1] == "Додати категорію":
-                add_category_m = await send_message(user_id, f'Додано нову категорію "{message}"')
-                bot_message_info.append(add_category_m.message_id)
-
-            elif chat_states[-1] == "Видалити категорію":
-                if len(categories) == 0:
-                    chat_states.pop()
-                    del_all_m = await reply_text("Усі категорії видалено!", reply_markup=nav.menu_show_category)
-                    bot_message_info.append(del_all_m.message_id)
-                elif len(selected_category) != 0:
-                    del_category_m = await send_message(user_id, f'Видалено категорію "{selected_category[-1]}"')
-                    selected_category.pop()
-                    bot_message_info.append(del_category_m.message_id)
-
-            # Print updated categories list
-            if len(categories) != 0:
-                new_category_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(categories)])
-                new_list_m = await reply_text(new_category_list, reply_markup=nav.menu_btn_back)
-                bot_message.append(new_list_m.message_id)
-
-            # Deleting and delaying messages to be deleted
-            if len(bot_message) == 2:
-                await delete_message(user_id, bot_message[0])
-                bot_message.pop(0)
-
-            if len(bot_message_info) == 2:
-                await delete_message(user_id, bot_message_info[0])
-                bot_message_info.pop(0)
-
-            if len(categories) != 0:
-                sleep(2)
-                await delete_message(user_id, bot_message_info[0])
-                bot_message_info.pop(0)
-            else:
-                await delete_message(user_id, bot_message[0])
-                bot_message.pop(0)
-
         if not message == "Назад":
-            # Update bot_data.json for incomes & expense in selected category
-            if chat_states[-1] == "Додати категорію":
-                categories.update({message: {}})
-                await category_actions()
-
-            elif chat_states[-1] == "Видалити категорію":
-                if message.isalpha():
-                    categories.pop(message)
-                elif message.isnumeric():
-                    if int(message) <= len(categories) and int(message) != 0:
-                        selected_category.append(list(categories.keys())[int(message) - 1])
-                        categories.pop(selected_category[-1])
-                        await category_actions()
-                    else:
-                        logging.info('list out of range')
-                        m = await reply_text('Немає такого значення у списку!', reply_markup=nav.menu_btn_back)
-                        bot_message_info.append(m.message_id)
-
+            if chat_states[-1] in ["Додати категорію", "Видалити категорію"]:
+                await category_actions(update, context, message)
         else:
             if len(chat_states) <= 2:
                 await home(update, context)
-                with open("bot_data.json", "r") as file:
-                    data_base = json.load(file)
             else:
                 await back_to_previous(update, context)
-                with open("bot_data.json", "r") as file:
-                    data_base = json.load(file)
+
+        with open("bot_data.json", "r") as file:
+            data_base = json.load(file)
 
     with open("bot_data.json", "w") as file:
         json.dump(data_base, file, indent=4)
