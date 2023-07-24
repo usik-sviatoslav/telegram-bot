@@ -594,16 +594,15 @@ def read_data(update: Update, current_dict=None, date_type=None):
                 date_expenses_dict[category] = month_expenses_dict
                 week_expenses_dict[category] = sort_by_week(all_days_expenses_dict) if date_type == "week" else None
 
-    if chat_states[-1] == "Переглянути доходи":
-        return incomes_dict
-    elif chat_states[-1] == "Переглянути витрати":
-        return expenses_dict
-    elif chat_states[-1] == "Доходи детально":
-        return date_incomes_dict
-    elif chat_states[-1] == "Витрати детально":
-        return date_expenses_dict
-    elif chat_states[-1] == "Статистика":
-        return incomes_dict if current_dict == "inc" else expenses_dict
+    chat_states_dict = {
+        "Переглянути доходи": incomes_dict,
+        "Переглянути витрати": expenses_dict,
+        "Доходи детально": date_incomes_dict,
+        "Витрати детально": date_expenses_dict,
+        "Статистика": incomes_dict if current_dict == "inc" else expenses_dict
+    }
+
+    return chat_states_dict.get(chat_states[-1])
 
 
 async def message_handler(update: Update, context: CallbackContext) -> None:
