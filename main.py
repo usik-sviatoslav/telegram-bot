@@ -566,19 +566,17 @@ def read_data(update: Update, current_dict=None, date_type=None):
                 incomes = expenses_data.get("incomes", [])
                 expenses = expenses_data.get("expenses", [])
 
-                if len(incomes) != 0:
+                if sum(incomes) != 0:
                     incomes_list.extend(incomes)
                     day_incomes_dict[date] = incomes
-                else:
-                    if date_type == "week":
-                        all_days_incomes_dict[date] = 0
+                elif date_type == "week":
+                    all_days_incomes_dict[date] = 0
 
-                if len(expenses) != 0:
+                if sum(expenses) != 0:
                     expenses_list.extend(expenses)
                     day_expenses_dict[date] = expenses
-                else:
-                    if date_type == "week":
-                        all_days_expenses_dict[date] = 0
+                elif date_type == "week":
+                    all_days_expenses_dict[date] = 0
 
                 if date_type == "week":
                     all_days_incomes_dict[date] = sum(incomes) if incomes else 0
