@@ -399,7 +399,8 @@ async def handle_statistic(update, context, message_type, date_type=None):
         list_of_inc.extend(["Доходів поки не було"])
 
     formatted_exp = [
-        f"{category} ({amount} грн.)" for category, amount in read_data(update, "exp", date_type).items()
+        f"{category} ({amount:_} грн.)".replace("_", " ")
+        for category, amount in read_data(update, "exp", date_type).items()
     ]
     if len(formatted_exp) != 0:
         categories_exp_amounts = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_exp)])
@@ -472,12 +473,12 @@ async def detail_transaction(update, context, reply_markup, f_incomes_expenses, 
             trans_dict = {}
             trans_dict.update(read_data(update)[selected_category[-1]])
             for_selected_month = list(trans_dict[selected_date[-1]].values())
-            total_sum = sum(num for inner_list in for_selected_month for num in inner_list)
+            total_sum = f"{sum(num for inner_list in for_selected_month for num in inner_list):_}".replace("_", " ")
             formatted = []
 
             def format_values():
-                result = "\n".join([f"{i}. {line} грн." for i, line in enumerate(values, start=1)])
-                formatted.extend([f"{current_day[:5]} ({sum(values)} грн.)\n{result}"])
+                result = "\n".join([f"{i}.  {line:_} грн.".replace("_", " ") for i, line in enumerate(values, start=1)])
+                formatted.extend([f"{current_day[:5]} ({sum(values):_} грн.)\n{result}".replace("_", " ")])
 
             if chat_states[-1] == "Доходи детально":
                 for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
@@ -768,7 +769,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
                 selected_category.pop()
                 amount_msg = message if chat_states[-1] == "+" else f"-{message}"
-                m = await send_message(user_id, f"До категорії додано {amount_msg} грн.")
+                m = await send_message(user_id, f"До категорії додано {int(amount_msg):_} грн.".replace("_", " "))
                 bot_message_info.append(m.message_id)
 
             chat_states.append("До категорії додано")
