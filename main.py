@@ -377,7 +377,7 @@ async def handle_expense_or_income(update, context, message_type, category_type)
         json.dump(data_base, f, indent=4)
 
 
-async def handle_statistic(update, context, message_type, date_type=None):
+async def handle_statistic(update, message_type, date_type=None):
     logging.info(f'Button "{message_type}" was triggered')
 
     inc_data = read_data(update, "inc", date_type, message_type)
@@ -388,8 +388,6 @@ async def handle_statistic(update, context, message_type, date_type=None):
 
     user_id = str(update.effective_chat.id)
     reply_text = update.message.reply_text
-    send_message = context.bot.send_message
-    bot_message = data_base[user_id]["bot_message"]
     bot_message_info = data_base[user_id]["bot_message_info"]
     selected_date = data_base[user_id]["selected_date"]
     selected_category_dates = data_base[user_id]["selected_category_dates"]
@@ -924,7 +922,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             with open("bot_data.json", "w") as f:
                 json.dump(data_base, f, indent=4)
 
-            await handle_statistic(update, context, message, "week")
+            await handle_statistic(update, message, "week")
 
         elif message == "Переглянути категорії":
             logging.info(f'Button "{message}" was triggered')
@@ -1066,7 +1064,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 with open("bot_data.json", "w") as f:
                     json.dump(data_base, f, indent=4)
 
-                await handle_statistic(update, context, message, "week")
+                await handle_statistic(update, message, "week")
 
             except IndexError:
                 m = await send_message(user_id, 'Більше немає записів!')
@@ -1098,7 +1096,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             with open("bot_data.json", "w") as file:
                 json.dump(data_base, file, indent=4)
 
-            await handle_statistic(update, context, message, "week")
+            await handle_statistic(update, message, "week")
 
         elif message == "Назад":
             await back_to_previous(update, context)
