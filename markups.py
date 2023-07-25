@@ -3,11 +3,6 @@ from telegram import ReplyKeyboardMarkup, KeyboardButton
 # ----------------------------------------------------------------------------------------------------------------------
 # Buttons
 # ----------------------------------------------------------------------------------------------------------------------
-buttons = [
-    "+", "-", "Переглянути доходи", "Переглянути витрати", "Додати", "Видалити", "Перейти на головну сторінку",
-    "Додати новий запис", "Меню", "Назад", "->", "Статистика", "Тиждень", "Місяць", "Попередній місяць", "Рік",
-    "Додати категорію", "Видалити категорію", "Переглянути категорії"
-]
 
 btn_incomes = KeyboardButton("+")
 btn_expenses = KeyboardButton("-")
@@ -75,7 +70,7 @@ menu_show_statistic_week_1 = ReplyKeyboardMarkup(
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_statistic_week_2 = ReplyKeyboardMarkup(
-    [[btn_previous_week, btn_month, btn_forward], [btn_back]],
+    [[btn_previous_week, btn_forward], [btn_back, btn_month]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_statistic_month_1 = ReplyKeyboardMarkup(
@@ -83,7 +78,7 @@ menu_show_statistic_month_1 = ReplyKeyboardMarkup(
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_statistic_month_2 = ReplyKeyboardMarkup(
-    [[btn_previous_month, btn_year, btn_forward], [btn_back]],
+    [[btn_previous_month, btn_forward], [btn_back, btn_year]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_statistic_year_1 = ReplyKeyboardMarkup(
@@ -91,7 +86,7 @@ menu_show_statistic_year_1 = ReplyKeyboardMarkup(
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_statistic_year_2 = ReplyKeyboardMarkup(
-    [[btn_previous_year, btn_week, btn_forward], [btn_back]],
+    [[btn_previous_year, btn_forward], [btn_back, btn_week]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_category = ReplyKeyboardMarkup(
