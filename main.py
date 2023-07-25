@@ -396,6 +396,7 @@ async def handle_statistic(update, context, message_type, date_type=None):
 
     list_of_inc = [f"{category} ({amount:_} грн.)".replace("_", " ") for category, amount in inc_data.items()]
     list_of_exp = [f"{category} ({amount:_} грн.)".replace("_", " ") for category, amount in exp_data.items()]
+    formatted_list = []
 
     reply_markup = ""
     if date_type == "week":
@@ -407,21 +408,19 @@ async def handle_statistic(update, context, message_type, date_type=None):
 
     if list_of_inc:
         formatted_list_of_inc = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(list_of_inc)])
-        m_list_inc = await send_message(user_id, f"Доходи за {selected_date[-1]}:\n\n{formatted_list_of_inc}")
-        bot_message_info.append(m_list_inc.message_id)
+        formatted_list.append(f"{selected_date[-1]}\n\n{'—'* 16}\nДоходи:\n\n{formatted_list_of_inc}\n{'—'* 16}")
     else:
-        m_list_inc = await send_message(user_id, f"Доходів за {selected_date[-1]} не було")
-        bot_message_info.append(m_list_inc.message_id)
+        formatted_list.append(f"{selected_date[-1]}\n\n{'—'* 16}\nДоходів не було\n{'—'* 16}")
 
     if list_of_exp:
         formatted_list_of_exp = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(list_of_exp)])
-        m_list_exp = await reply_text(
-            f"Витрати за {selected_date[-1]}:\n\n{formatted_list_of_exp}", reply_markup=reply_markup
-        )
-        bot_message.append(m_list_exp.message_id)
+        formatted_list.append(f"Витрати:\n\n{formatted_list_of_exp}\n{'—'* 16}")
     else:
-        m_list_exp = await reply_text(f"Витрат за {selected_date[-1]} не було", reply_markup=reply_markup)
-        bot_message.append(m_list_exp.message_id)
+        formatted_list.append(f"Витрат не було\n{'—'* 16}\n")
+
+    finally_formatted_list = "\n\n".join(formatted_list)
+    m = await reply_text(finally_formatted_list, reply_markup=reply_markup)
+    bot_message_info.append(m.message_id)
 
     if message_type != "→":
         selected_category_dates.pop()
