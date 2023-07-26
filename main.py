@@ -103,17 +103,10 @@ async def home(update: Update, context: CallbackContext) -> None:
                 await context.bot.delete_message(user_id, message_id)
                 bot_message_info.pop(0)
 
-        for _ in reversed(chat_states):
-            chat_states.pop()
-
-        for _ in reversed(selected_category):
-            selected_category.pop()
-
-        for _ in reversed(selected_date):
-            selected_date.pop()
-
-        for _ in reversed(selected_category_dates):
-            selected_category_dates.pop()
+        chat_states.clear()
+        selected_date.clear()
+        selected_category.clear()
+        selected_category_dates.clear()
 
     except Exception as exception:
         logging.warning(f"⚠️ {exception} ⚠️")
@@ -189,8 +182,7 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
 
     try:
         if chat_states[-1] in ["Меню", "Додати новий запис"]:
-            for _ in reversed(chat_states):
-                chat_states.pop()
+            chat_states.clear()
 
             with open("bot_data.json", "w") as file:
                 json.dump(data_base, file, indent=4)
@@ -227,10 +219,8 @@ async def back_to_previous(update: Update, context: CallbackContext) -> None:
                     chat_states.pop()
                     selected_category.pop()
 
-                for _ in reversed(selected_date):
-                    selected_date.pop()
-                for _ in reversed(selected_category_dates):
-                    selected_category_dates.pop()
+                selected_date.clear()
+                selected_category_dates.clear()
 
             chat_states.pop()
             m = await reply_text("Оберіть параметр", reply_markup=nav.menu)
@@ -352,15 +342,21 @@ async def handle_expense_or_income(update, context, message_type, category_type)
     user_id = str(update.effective_chat.id)
     reply_text = update.message.reply_text
     send_message = context.bot.send_message
+    delete_message = context.bot.delete_message
     categories = data_base[user_id]['categories']
     chat_states = data_base[user_id]["chat_states"]
     bot_message = data_base[user_id]["bot_message"]
     bot_message_info = data_base[user_id]["bot_message_info"]
 
     if len(categories) == 0 or sum(read_data(update).values()) == 0:
-        m_info = await reply_text(f"Поки немає жодних {category_type}", reply_markup=nav.menu)
+        m_info = await send_message(user_id, f"Поки немає жодних {category_type}")
         bot_message_info.append(m_info.message_id)
         chat_states.pop()
+
+        sleep(2)
+        await delete_message(user_id, bot_message_info[-1])
+        bot_message_info.pop()
+
     else:
         formatted_categories = [f"{category}" for category, amount in read_data(update).items()]
         categories_list = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(formatted_categories)])
@@ -396,25 +392,29 @@ async def handle_statistic(update, message_type, date_type=None):
     list_of_exp = [f"{category} ({amount:_} грн.)".replace("_", " ") for category, amount in exp_data.items()]
     formatted_list = []
 
-    reply_markup = ""
+    message = None
+    reply_markup = None
     if date_type == "week":
+        message = f"Статистика за \nтиждень з {selected_date[-1]}\n\n"
         reply_markup = nav.menu_show_statistic_week_1 if len(selected_date) == 1 else nav.menu_show_statistic_week_2
     elif date_type == "month":
+        message = f"Статистика за місяць\n{selected_date[-1]}\n\n"
         reply_markup = nav.menu_show_statistic_month_1 if len(selected_date) == 1 else nav.menu_show_statistic_month_2
     elif date_type == "year":
+        message = f"Статистика за {selected_date[-1]} рік\n\n"
         reply_markup = nav.menu_show_statistic_year_1 if len(selected_date) == 1 else nav.menu_show_statistic_year_2
 
     if list_of_inc:
         formatted_list_of_inc = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(list_of_inc)])
-        formatted_list.append(f"{selected_date[-1]}\n\n{'—'* 16}\nДоходи:\n\n{formatted_list_of_inc}\n{'—'* 16}")
+        formatted_list.append(f"{message}{'—' * 16}\nДоходи:\n\n{formatted_list_of_inc}\n{'—' * 16}")
     else:
-        formatted_list.append(f"{selected_date[-1]}\n\n{'—'* 16}\nДоходів не було\n{'—'* 16}")
+        formatted_list.append(f"{message}{'—' * 16}\nДоходів не було\n{'—' * 16}")
 
     if list_of_exp:
         formatted_list_of_exp = "\n".join([f"{i + 1}. {line}" for i, line in enumerate(list_of_exp)])
-        formatted_list.append(f"Витрати:\n\n{formatted_list_of_exp}\n{'—'* 16}")
+        formatted_list.append(f"Витрати:\n\n{formatted_list_of_exp}\n{'—' * 16}")
     else:
-        formatted_list.append(f"Витрат не було\n{'—'* 16}\n")
+        formatted_list.append(f"Витрат не було\n{'—' * 16}\n")
 
     finally_formatted_list = "\n\n".join(formatted_list)
     m = await reply_text(finally_formatted_list, reply_markup=reply_markup)
@@ -476,10 +476,12 @@ async def detail_transaction(update, context, reply_markup, f_incomes_expenses, 
                 if len(selected_category_dates) != 0 and forward is None:
                     selected_category_dates.pop()
 
-            trans_dict = {}
-            trans_dict.update(read_data(update)[selected_category[-1]])
-            for_selected_month = list(trans_dict[selected_date[-1]].values())
-            total_sum = f"{sum(num for inner_list in for_selected_month for num in inner_list):_}".replace("_", " ")
+            inc_data = read_data(update)
+            exp_data = read_data(update)
+            # trans_dict = {}
+            # trans_dict.update(read_data(update)[selected_category[-1]])
+            # for_selected_month = list(trans_dict[selected_date[-1]].values())
+            # total_sum = f"{sum(num for inner_list in for_selected_month for num in inner_list):_}".replace("_", " ")
             formatted = []
 
             def format_values():
@@ -487,10 +489,10 @@ async def detail_transaction(update, context, reply_markup, f_incomes_expenses, 
                 formatted.extend([f"{current_day[:5]} ({sum(values):_} грн.)\n{result}".replace("_", " ")])
 
             if chat_states[-1] == "Доходи детально":
-                for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
+                for current_day, values in read_data(update)[selected_category[-1]]:
                     format_values()
             elif chat_states[-1] == "Витрати детально":
-                for current_day, values in read_data(update)[selected_category[-1]][selected_date[-1]].items():
+                for current_day, values in read_data(update)[selected_category[-1]]:
                     format_values()
 
             detailed_list = "\n\n".join(formatted)
@@ -508,7 +510,7 @@ async def detail_transaction(update, context, reply_markup, f_incomes_expenses, 
 
             bot_message_info.append(0)
 
-        except (IndexError, KeyError):
+        except IndexError:
             m = await send_message(user_id, 'Більше немає записів!')
             bot_message_info.append(m.message_id)
             sleep(2)
@@ -529,18 +531,6 @@ def get_current_week():
     end_of_week = start_of_week + timedelta(days=6)
     week_str = f"{start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}"
     return week_str
-
-
-def get_previous_week(week_str):
-    start_date_str, end_date_str = week_str.split(' - ')
-    start_date = datetime.strptime(start_date_str, '%d.%m')
-    end_date = datetime.strptime(end_date_str, '%d.%m')
-
-    start_of_previous_week = start_date - timedelta(days=7)
-    end_of_previous_week = end_date - timedelta(days=7)
-
-    previous_week_str = f"{start_of_previous_week.strftime('%d.%m')} - {end_of_previous_week.strftime('%d.%m')}"
-    return previous_week_str
 
 
 def sort_by_week(update, dates_dict, selected_date, message_type):
@@ -579,8 +569,7 @@ def sort_by_week(update, dates_dict, selected_date, message_type):
             return start_month, start_day
 
         sorted_dates = sorted(selected_category_dates, key=parse_date)
-        for _ in reversed(selected_category_dates):
-            selected_category_dates.pop()
+        selected_category_dates.clear()
 
         with open("bot_data.json", "w") as file:
             json.dump(data_base, file, indent=4)
@@ -607,16 +596,20 @@ def read_data(update: Update, current_dict=None, date_type=None, message_type=No
     expenses_dict = {}
     week_incomes_dict = {}
     week_expenses_dict = {}
-    date_incomes_dict = {}
-    date_expenses_dict = {}
+    month_incomes_dict = {}
+    month_expenses_dict = {}
+    year_incomes_dict = {}
+    year_expenses_dict = {}
 
     for category, dates in categories.items():
         incomes_list = []
         expenses_list = []
         all_days_incomes_dict = {}
         all_days_expenses_dict = {}
-        month_incomes_dict = {}
-        month_expenses_dict = {}
+        all_month_incomes_dict = {}
+        all_month_expenses_dict = {}
+        # all_years_incomes_dict = {}
+        # all_years_expenses_dict = {}
 
         for month, day in dates.items():
             day_incomes_dict = {}
@@ -628,55 +621,63 @@ def read_data(update: Update, current_dict=None, date_type=None, message_type=No
 
                 if sum(incomes) != 0:
                     incomes_list.extend(incomes)
+                    all_days_incomes_dict[date] = sum(incomes)
                     day_incomes_dict[date] = incomes
-                    if date_type == "week":
-                        all_days_incomes_dict[date] = sum(incomes)
-                # elif date_type == "week":
-                #     all_days_incomes_dict[date] = 0
 
                 if sum(expenses) != 0:
                     expenses_list.extend(expenses)
+                    all_days_expenses_dict[date] = sum(expenses)
                     day_expenses_dict[date] = expenses
-                    if date_type == "week":
-                        all_days_expenses_dict[date] = sum(expenses)
-                # elif date_type == "week":
-                #     all_days_expenses_dict[date] = 0
-
-                # if date_type == "week":
-                #     all_days_incomes_dict[date] = sum(incomes) if incomes else 0
-                #     all_days_expenses_dict[date] = sum(expenses) if expenses else 0
 
             if sum(incomes_list) != 0:
                 incomes_dict[category] = sum(incomes_list)
-                month_incomes_dict[month] = day_incomes_dict
-                date_incomes_dict[category] = month_incomes_dict
+
+            if len(day_incomes_dict) != 0:
+                total_sum = sum(num for inner_list in list(day_incomes_dict.values()) for num in inner_list)
+                all_month_incomes_dict[month] = total_sum
+
+                if len(selected_date) != 0:
+                    if selected_date[-1] in all_month_incomes_dict.keys():
+                        month_incomes_dict[category] = all_month_incomes_dict[selected_date[-1]]
 
             if sum(expenses_list) != 0:
                 expenses_dict[category] = sum(expenses_list)
-                month_expenses_dict[month] = day_expenses_dict
-                date_expenses_dict[category] = month_expenses_dict
+
+            if len(day_expenses_dict) != 0:
+                total_sum = sum(num for inner_list in list(day_expenses_dict.values()) for num in inner_list)
+                all_month_expenses_dict[month] = total_sum
+
+                if len(selected_date) != 0:
+                    if selected_date[-1] in all_month_expenses_dict.keys():
+                        month_expenses_dict[category] = all_month_expenses_dict[selected_date[-1]]
 
         income_amount = 0
         expense_amount = 0
         if message_type in ["Статистика", "Попередній тиждень", "→"]:
-            income_amount = sort_by_week(update, all_days_incomes_dict, selected_date[-1], message_type)
-            expense_amount = sort_by_week(update, all_days_expenses_dict, selected_date[-1], message_type)
+            if date_type == "week":
+                income_amount = sort_by_week(update, all_days_incomes_dict, selected_date[-1], message_type)
+                expense_amount = sort_by_week(update, all_days_expenses_dict, selected_date[-1], message_type)
 
-        if date_type == "week":
-            if income_amount != 0:
-                if len(all_days_incomes_dict) != 0:
+                if income_amount != 0 and len(all_days_incomes_dict) != 0:
                     week_incomes_dict[category] = income_amount
 
-            if expense_amount != 0:
-                if len(all_days_expenses_dict) != 0:
+                if expense_amount != 0 and len(all_days_expenses_dict) != 0:
                     week_expenses_dict[category] = expense_amount
+
+    dict_type = None
+    if date_type == "week":
+        dict_type = week_incomes_dict if current_dict == "inc" else week_expenses_dict
+    elif date_type == "month":
+        dict_type = month_incomes_dict if current_dict == "inc" else month_expenses_dict
+    elif date_type == "month":
+        dict_type = year_incomes_dict if current_dict == "inc" else year_expenses_dict
 
     chat_states_dict = {
         "Переглянути доходи": incomes_dict,
         "Переглянути витрати": expenses_dict,
-        "Доходи детально": date_incomes_dict,
-        "Витрати детально": date_expenses_dict,
-        "Статистика": week_incomes_dict if current_dict == "inc" else week_expenses_dict
+        "Доходи детально": month_incomes_dict,
+        "Витрати детально": month_expenses_dict,
+        "Статистика": dict_type
     }
 
     return chat_states_dict.get(chat_states[-1])
@@ -691,6 +692,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
     send_message = context.bot.send_message
     delete_message = context.bot.delete_message
     user_id = str(update.effective_chat.id)
+    year = str(datetime.now().date().strftime("%Y"))
     month_y = str(datetime.now().date().strftime("%m.%Y"))
     day_m_y = str(datetime.now().date().strftime("%d.%m.%Y"))
 
@@ -707,7 +709,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
     await delete_message_from_user(update)
 
-    # Checking messages from the user 261-669
+    # Checking messages from the user 705-669
     if len(chat_states) == 0:
         if message == "Додати новий запис":
             if len(categories) == 0:
@@ -917,12 +919,21 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             await handle_expense_or_income(update, context, message, command)
 
         elif message == "Статистика":
-            chat_states.append(message)
-            selected_date.append(get_current_week())
-            with open("bot_data.json", "w") as f:
-                json.dump(data_base, f, indent=4)
+            if len(list(categories.values())) == 0:
+                m = await send_message(user_id, "Немає даних для статистики!")
+                bot_message_info.append(m.message_id)
 
-            await handle_statistic(update, message, "week")
+                sleep(2)
+                await delete_message(user_id, bot_message_info[-1])
+                bot_message_info.pop()
+
+            else:
+                chat_states.append(message)
+                selected_date.append(get_current_week())
+                with open("bot_data.json", "w") as f:
+                    json.dump(data_base, f, indent=4)
+
+                await handle_statistic(update, message, "week")
 
         elif message == "Переглянути категорії":
             logging.info(f'Button "{message}" was triggered')
@@ -1053,18 +1064,25 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             data_base = json.load(file)
 
     elif chat_states[-1] == "Статистика":
-        if message == "Тиждень":
-            logging.info(f'Button "{message}" was triggered')
-            # chat_states.append(message)
+        date_type = {
+            "Попередній тиждень": "week",
+            "Попередній місяць": "month",
+            "Попередній рік": "year",
+        }
+        message_actions = {
+            "Тиждень": ("week", get_current_week()),
+            "Місяць": ("month", month_y),
+            "Рік": ("year", year)
+        }
 
-        elif message == "Попередній тиждень":
+        if message in date_type.keys():
             logging.info(f'Button "{message}" was triggered')
             try:
                 selected_date.append(selected_category_dates[-1])
                 with open("bot_data.json", "w") as f:
                     json.dump(data_base, f, indent=4)
 
-                await handle_statistic(update, message, "week")
+                await handle_statistic(update, message, date_type.get(message))
 
             except IndexError:
                 m = await send_message(user_id, 'Більше немає записів!')
@@ -1073,21 +1091,23 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
                 await delete_message(user_id, bot_message_info[-1])
                 bot_message_info.pop()
 
-        elif message == "Місяць":
+        if message in message_actions:
             logging.info(f'Button "{message}" was triggered')
-            # chat_states.append(message)
 
-        elif message == "Попередній місяць":
-            logging.info(f'Button "{message}" was triggered')
-            # selected_date.append(get_previous_week(selected_date[-1]))
+            selected_date.clear()
+            selected_category_dates.clear()
+            selected_date.append(message_actions[message][1])
 
-        elif message == "Рік":
-            logging.info(f'Button "{message}" was triggered')
-            # chat_states.append(message)
+            if message == "Місяць":
+                for category, dates in categories.items():
+                    for month in dates.keys():
+                        if month not in selected_category_dates:
+                            selected_category_dates.append(month)
 
-        elif message == "Попередній рік":
-            logging.info(f'Button "{message}" was triggered')
-            # selected_date.append(get_previous_week(selected_date[-1]))
+            with open("bot_data.json", "w") as file:
+                json.dump(data_base, file, indent=4)
+
+            await handle_statistic(update, message, message_actions[message][0])
 
         elif message == "→":
             logging.info(f'Button "{message}" was triggered')
@@ -1096,7 +1116,17 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             with open("bot_data.json", "w") as file:
                 json.dump(data_base, file, indent=4)
 
-            await handle_statistic(update, message, "week")
+            data_type = ""
+            if re.match(r"\d{2}.\d{2} - \d{2}.\d{2}", selected_date[-1]):
+                data_type = "week"
+
+            elif re.match(r"\d{2}.\d{4}", selected_date[-1]):
+                data_type = "month"
+
+            elif re.match(r"\d{4}", selected_date[-1]):
+                data_type = "year"
+
+            await handle_statistic(update, message, data_type)
 
         elif message == "Назад":
             await back_to_previous(update, context)
