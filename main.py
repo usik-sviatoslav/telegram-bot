@@ -913,7 +913,12 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             await handle_expense_or_income(update, context, message, command)
 
         elif message == "Статистика":
-            if len(list(categories.values())) == 0:
+            value = 0
+            for i in list(categories.values()):
+                if len(i) != 0:
+                    value += 1
+
+            if len(list(categories)) == 0 or value == 0:
                 m = await send_message(user_id, "Немає даних для статистики!")
                 bot_message_info.append(m.message_id)
 
