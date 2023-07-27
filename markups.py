@@ -4,6 +4,11 @@ from telegram import ReplyKeyboardMarkup, KeyboardButton
 # Buttons
 # ----------------------------------------------------------------------------------------------------------------------
 
+month_name = {
+    "01": "Січень", "02": "Лютий", "03": "Березень", "04": "Квітень", "05": "Травень", "06": "Червень",
+    "07": "Липень", "08": "Серпень", "09": "Вересень", "10": "Жовтень", "11": "Листопад", "12": "Грудень"
+}
+
 btn_incomes = KeyboardButton("+")
 btn_expenses = KeyboardButton("-")
 btn_other_day = KeyboardButton("Обрати інший день")
@@ -66,28 +71,28 @@ menu_show_incomes_2 = ReplyKeyboardMarkup(
     resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
 )
 menu_show_statistic_week_1 = ReplyKeyboardMarkup(
-    [[btn_previous_week, btn_month], [btn_back]],
-    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+    [[btn_previous_week, btn_month], [btn_menu]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Статистика за тиждень"
 )
 menu_show_statistic_week_2 = ReplyKeyboardMarkup(
-    [[btn_previous_week, btn_forward], [btn_back, btn_month]],
-    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+    [[btn_previous_week, btn_forward], [btn_menu, btn_month]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Статистика за тиждень"
 )
 menu_show_statistic_month_1 = ReplyKeyboardMarkup(
-    [[btn_previous_month, btn_year], [btn_back]],
-    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+    [[btn_previous_month, btn_year], [btn_menu]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Статистика за місяць"
 )
 menu_show_statistic_month_2 = ReplyKeyboardMarkup(
-    [[btn_previous_month, btn_forward], [btn_back, btn_year]],
-    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+    [[btn_previous_month, btn_forward], [btn_menu, btn_year]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Статистика за місяць"
 )
 menu_show_statistic_year_1 = ReplyKeyboardMarkup(
-    [[btn_previous_year, btn_week], [btn_back]],
-    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+    [[btn_previous_year, btn_week], [btn_menu]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Статистика за рік"
 )
 menu_show_statistic_year_2 = ReplyKeyboardMarkup(
-    [[btn_previous_year, btn_forward], [btn_back, btn_week]],
-    resize_keyboard=True, is_persistent=True, input_field_placeholder="Оберіть параметр"
+    [[btn_previous_year, btn_forward], [btn_menu, btn_week]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="Статистика за рік"
 )
 menu_show_category = ReplyKeyboardMarkup(
     [[btn_add_category], [btn_remove_category], [btn_back]],
