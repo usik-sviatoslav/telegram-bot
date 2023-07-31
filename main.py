@@ -1,13 +1,13 @@
+import re
 import json
 import logging
-import re
-from collections import OrderedDict
 
 import markups as nav
 import my_token as token
 
 from time import sleep
 from telegram import Update
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from telegram.ext import ApplicationBuilder, CallbackContext, CommandHandler, MessageHandler, filters
 
@@ -737,6 +737,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
         if message in categories:
             chat_states.append("Обрано категорію")
             selected_category.append(message)
+            selected_date.append(day_m_y)
             logging.info(f'Category "{message}" was selected')
 
             m = await reply_text(
@@ -762,6 +763,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             if int(message) <= len(categories) and int(message) != 0:
                 chat_states.append("Обрано категорію")
                 selected_category.append(list(categories.keys())[int(message) - 1])
+                selected_date.append(day_m_y)
                 logging.info(f'Category "{selected_category[0]}" was selected')
 
                 m = await reply_text(
@@ -806,7 +808,7 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
             logging.info(f'Button "{message}" was triggered')
             chat_states.append(message)
 
-            m = await reply_text("Введіть дату", reply_markup=nav.menu_btn_back_date)
+            m = await reply_text("Введіть дату", reply_markup=nav.menu_btn_back_date_1)
             bot_message_info.append(m.message_id)
 
         elif message == "Назад":
@@ -834,10 +836,11 @@ async def message_handler(update: Update, context: CallbackContext) -> None:
 
         if message.isdigit():
             if chat_states[-1] in ["+", "-"]:
-                try:
-                    update_category(selected_category[-1], month_y, day_m_y, chat_states[-1], int(message))
-                except KeyError:
-                    update_category(selected_category[-1], month_y, day_m_y, chat_states[-1], int(message))
+                data = datetime.strptime(selected_date[-1], "%d.%m.%Y")
+                month_y = f'{data.strftime("%m.%Y")}'
+                day_m_y = f'{data.strftime("%d.%m.%Y")}'
+
+                update_category(selected_category[-1], month_y, day_m_y, chat_states[-1], int(message))
 
                 selected_category.pop()
                 amount_msg = message if chat_states[-1] == "+" else f"-{message}"

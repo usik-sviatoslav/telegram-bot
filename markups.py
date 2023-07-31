@@ -102,9 +102,13 @@ menu_btn_back = ReplyKeyboardMarkup(
     [[btn_back]],
     resize_keyboard=True, is_persistent=True
 )
-menu_btn_back_date = ReplyKeyboardMarkup(
+menu_btn_back_date_1 = ReplyKeyboardMarkup(
     [[btn_back]],
     resize_keyboard=True, is_persistent=True, input_field_placeholder="DD.MM.YYYY"
+)
+menu_btn_back_date_2 = ReplyKeyboardMarkup(
+    [[btn_back]],
+    resize_keyboard=True, is_persistent=True, input_field_placeholder="DD.MM №"
 )
 menu_new_category = ReplyKeyboardMarkup(
     [[btn_add_category], [btn_home]],
